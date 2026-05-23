@@ -2923,6 +2923,20 @@ function downloadPdfRecord(record) {
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url), 60000);
 }
+function downloadPdfRecord(record) {
+  const binary = atob(record.base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], {type:record.mimeType || 'application/pdf'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = record.fileName || 'documento.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
+}
 async function openOrderPdf(id) {
   const orders = LS.get('orders') || [];
   const order = orders.find(o=>o.id===id);
@@ -3384,15 +3398,15 @@ async function openWhatsAppDocument(order, phone) {
   window.open(url, '_blank', 'noopener');
   let pdfReady = false;
   try {
-    setLoadingText('Abriendo PDF para adjuntar...');
+    setLoadingText('Descargando PDF para adjuntar...');
     const record = await getOrderPdfRecord(order);
     if (record?.base64) {
-      openPdfRecord(record);
+      downloadPdfRecord(record);
       pdfReady = true;
     }
   } catch(e) {}
   setTimeout(()=>copyPlainText(message), 300);
-  toast(copied ? `${pdfReady ? 'PDF abierto' : 'PDF no disponible'} y texto copiado para WhatsApp` : 'WhatsApp lleva el texto del mensaje','ok');
+  toast(copied ? `${pdfReady ? 'PDF descargado' : 'PDF no disponible'} y texto copiado para WhatsApp` : 'WhatsApp lleva el texto del mensaje','ok');
   return true;
 }
 
