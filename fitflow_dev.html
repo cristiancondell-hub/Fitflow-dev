@@ -359,7 +359,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .order-detail-gross-value{font-size:11px;font-weight:900;color:var(--green2);}
 
 /* ── TOAST ── */
-#toast{position:fixed;bottom:calc(var(--tab-h) + 12px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(16px);background:#1e293b;color:#fff;padding:9px 20px;border-radius:100px;font-size:13px;font-weight:700;z-index:300;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;}
+#toast{position:fixed;top:calc(102px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-12px);background:#1e293b;color:#fff;padding:9px 20px;border-radius:100px;font-size:13px;font-weight:700;z-index:650;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 #toast.ok{background:var(--green);}
 #toast.err{background:var(--red);}
@@ -2321,7 +2321,7 @@ function buildDocumentBody(order) {
   const totals = docTotals(items);
   const sep = '----------------------------------------';
   const rows = items.map((x, idx) => {
-    const unitGross = discountedGross(x.precio, x.desc);
+    const unitGross = Math.round(x.precio||0);
     const unitNet = grossToNet(unitGross);
     const lineGross = unitGross*(x.qty||0);
     const lineNet = grossToNet(lineGross);
@@ -2336,6 +2336,10 @@ function buildDocumentBody(order) {
     ].join('\r\n');
   }).join('\r\n\r\n');
   return [
+    documentCustomerMainText(order, 'email'),
+    '',
+    'Para una mejor visualización del detalle del documento en dispositivos móviles, recomendamos girar la pantalla en posición horizontal.',
+    '',
     company.nombreComercial || '',
     company.nombre,
     `RUT: ${company.rut}`,
@@ -2378,7 +2382,7 @@ function buildDocumentBody(order) {
     '',
     `Validez hasta: ${order.validUntil||validUntilText(new Date(), order.validityDays)}`,
     '',
-    'Documento generado desde FitFlow.'
+    documentCustomerClosingText(order, 'email')
   ].join('\r\n');
 }
 
@@ -2386,6 +2390,37 @@ function escEmailHtml(v) {
   return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function documentCustomerMainText(order={}, channel='email') {
+  const cfg = DOC_TYPES[order.docType] || DOC_TYPES.cotizacion;
+  const num = order.documentNumber || '';
+  if (channel === 'whatsapp') {
+    return order.docType === 'nota_venta'
+      ? `Estimado Cliente, le comparto ${cfg.label} N° ${num}. Será procesada a la brevedad por nuestro equipo central para su gestión.`
+      : `Estimado Cliente, le comparto ${cfg.label} N° ${num} por los productos de su interés.`;
+  }
+  return order.docType === 'nota_venta'
+    ? `Estimado Cliente,\r\n\r\nAdjunto encontrará ${cfg.label} N° ${num}, la cual será procesada a la brevedad por nuestro equipo central para su posterior gestión.`
+    : `Estimado Cliente,\r\n\r\nAdjunto encontrará nuestra ${cfg.label} N° ${num}, por los productos de su interés.`;
+}
+function documentCustomerClosingText(order={}, channel='email') {
+  const vendor = order.vendedor || currentUser?.name || '';
+  if (channel === 'whatsapp') {
+    return [
+      'Quedo atento a cualquier consulta.',
+      '',
+      'Saludos,',
+      vendor,
+      'Centro Fitting'
+    ].filter(v=>String(v||'').trim()).join('\n');
+  }
+  return [
+    'Ante cualquier observación o consulta, por favor comuníquese directamente con su vendedor.',
+    '',
+    'Saludos cordiales,',
+    vendor,
+    'Centro Fitting'
+  ].filter(v=>String(v||'').trim()).join('\r\n');
+}
 function buildDocumentHtml(order) {
   const cfg = DOC_TYPES[order.docType] || DOC_TYPES.cotizacion;
   const company = getCompanyConfig();
@@ -2396,18 +2431,21 @@ function buildDocumentHtml(order) {
   const thStyle = 'padding:8px 6px;border-right:1px solid #d9deea;border-bottom:2px solid #061a53;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#061a53;text-align:left;white-space:nowrap;';
   const lastThStyle = 'padding:8px 6px;border-bottom:2px solid #061a53;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#061a53;text-align:left;white-space:nowrap;';
   const detailColgroup = '<col style="width:13%;"><col style="width:34%;"><col style="width:8%;"><col style="width:8%;"><col style="width:18%;"><col style="width:19%;">';
-  const itemRows = items.map(x => {
-    const unitGross = discountedGross(x.precio, x.desc);
+  const itemRows = items.map((x, idx) => {
+    const unitGross = Math.round(x.precio||0);
     const unitNet = grossToNet(unitGross);
     const lineGross = unitGross*(x.qty||0);
     const lineNet = grossToNet(lineGross);
+    const bodyBorder = idx === items.length - 1 ? 'border-bottom:1px solid #061a53;' : 'border-bottom:1px solid #d9deea;';
+    const rowCellStyle = rowStyle.replace('border-bottom:1px solid #d9deea;', bodyBorder);
+    const rowLastCellStyle = lastRowStyle.replace('border-bottom:1px solid #d9deea;', bodyBorder);
     return `<tr>
-      <td style="${rowStyle}white-space:nowrap;">${escEmailHtml(x.cod||'SIN CÓDIGO')}</td>
-      <td style="${rowStyle}">${escEmailHtml(x.nom||'Producto sin nombre')}</td>
-      <td style="${rowStyle}text-align:center;white-space:nowrap;">${escEmailHtml(x.qty||0)}</td>
-      <td style="${rowStyle}text-align:center;white-space:nowrap;">${escEmailHtml(unitLabel(x.unidad))}</td>
-      <td style="${rowStyle}text-align:right;white-space:nowrap;"><div style="font-weight:bold;color:#111827;">${escEmailHtml(moneyPlain(unitNet))}</div><div style="font-size:10px;color:#64748b;font-weight:normal;">c/IVA ${escEmailHtml(moneyPlain(unitGross))}</div></td>
-      <td style="${lastRowStyle}text-align:right;white-space:nowrap;"><div style="font-weight:bold;color:#111827;">${escEmailHtml(moneyPlain(lineNet))}</div><div style="font-size:10px;color:#64748b;font-weight:normal;">c/IVA ${escEmailHtml(moneyPlain(lineGross))}</div></td>
+      <td style="${rowCellStyle}white-space:nowrap;">${escEmailHtml(x.cod||'SIN CÓDIGO')}</td>
+      <td style="${rowCellStyle}">${escEmailHtml(x.nom||'Producto sin nombre')}</td>
+      <td style="${rowCellStyle}text-align:center;white-space:nowrap;">${escEmailHtml(x.qty||0)}</td>
+      <td style="${rowCellStyle}text-align:center;white-space:nowrap;">${escEmailHtml(unitLabel(x.unidad))}</td>
+      <td style="${rowCellStyle}text-align:right;white-space:nowrap;"><div style="font-weight:bold;color:#111827;">${escEmailHtml(moneyPlain(unitNet))}</div><div style="font-size:10px;color:#64748b;font-weight:normal;">c/IVA ${escEmailHtml(moneyPlain(unitGross))}</div></td>
+      <td style="${rowLastCellStyle}text-align:right;white-space:nowrap;"><div style="font-weight:bold;color:#111827;">${escEmailHtml(moneyPlain(lineNet))}</div><div style="font-size:10px;color:#64748b;font-weight:normal;">c/IVA ${escEmailHtml(moneyPlain(lineGross))}</div></td>
     </tr>`;
   }).join('');
   const totalsRows = [
@@ -2420,15 +2458,27 @@ function buildDocumentHtml(order) {
     <td style="padding:8px 8px;font-family:Arial,Helvetica,sans-serif;font-size:${i===4?'16':'12'}px;font-weight:bold;text-align:right;color:#061a53;border-right:1px solid #d9deea;border-bottom:${i===4?'0':'1px solid #d9deea'};white-space:nowrap;">${escEmailHtml(k)}</td>
     <td style="padding:8px 6px;font-family:Arial,Helvetica,sans-serif;font-size:${i===4?'16':'12'}px;font-weight:bold;text-align:right;color:#061a53;border-bottom:${i===4?'0':'1px solid #d9deea'};white-space:nowrap;">${escEmailHtml(v)}</td>
   </tr>`).join('');
+  const mainMessageHtml = escEmailHtml(documentCustomerMainText(order, 'email')).replace(/\r?\n/g,'<br>');
+  const mobileHintHtml = 'Para una mejor visualización del detalle del documento en dispositivos móviles, recomendamos girar la pantalla en posición horizontal.';
+  const closingHtml = escEmailHtml(documentCustomerClosingText(order, 'email')).replace(/\r?\n/g,'<br>');
   return `<!doctype html>
 <html>
 <body style="margin:0;padding:0;background:#ffffff;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
     <tr>
       <td align="center" style="padding:18px 10px;">
-        <table role="presentation" width="760" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:760px;border:1px solid #061a53;background:#ffffff;">
+        <table role="presentation" width="760" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:760px;background:#ffffff;">
           <tr>
-            <td style="padding:18px 22px 8px 22px;font-family:Arial,Helvetica,sans-serif;">
+            <td style="font-family:Arial,Helvetica,sans-serif;">
+              <div style="font-size:14px;line-height:1.45;color:#111827;margin:0 0 16px 0;">
+                ${mainMessageHtml}
+              </div>
+              <div style="font-size:12px;line-height:1.35;color:#64748b;margin:0 0 14px 0;">
+                ${mobileHintHtml}
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;background:#ffffff;">
+                <tr>
+                  <td style="padding:18px 22px 8px 22px;font-family:Arial,Helvetica,sans-serif;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td width="100%" style="width:100%;font-family:Arial,Helvetica,sans-serif;color:#061a53;vertical-align:top;line-height:1.22;">
@@ -2447,22 +2497,20 @@ function buildDocumentHtml(order) {
                 </tr>
               </table>
               <div style="font-size:28px;font-weight:bold;color:#061a53;text-align:center;margin:22px 0 14px 0;">${escEmailHtml(cfg.title)}</div>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;">
-                <tr>
-                  <td style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;border-right:1px solid #061a53;"><strong>Fecha</strong><br>${escEmailHtml(order.fecha)}</td>
-                  <td style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;border-right:1px solid #061a53;"><strong>Vendedor</strong><br>${escEmailHtml(order.vendedor)}</td>
-                  <td style="padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;"><strong>Documento</strong><br>${escEmailHtml(cfg.label)}</td>
-                </tr>
-              </table>
               <div style="font-size:16px;font-weight:bold;color:#061a53;margin:18px 0 8px 0;">INFORMACIÓN DEL CLIENTE</div>
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;">
-                ${[
-                  ['Cliente',order.cliente?.nombre],
-                  ['RUT',order.cliente?.rut],
-                  ['Dirección',order.cliente?.direccion],
-                  ['Comuna',order.cliente?.comuna],
-                  ['Ciudad',order.cliente?.ciudad]
-                ].map(([k,v])=>`<tr><td style="padding:8px 10px;width:150px;font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#061a53;border-bottom:1px solid #d9deea;">${k}</td><td style="padding:8px 10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#111827;border-bottom:1px solid #d9deea;">${escEmailHtml(v||'')}</td></tr>`).join('')}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
+                <tr>
+                  <td width="62%" style="width:62%;padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:#111827;border-right:1px solid #d9deea;">
+                    <strong style="color:#061a53;">Cliente:</strong> ${escEmailHtml(order.cliente?.nombre||'')}<br>
+                    <strong style="color:#061a53;">RUT:</strong> ${escEmailHtml(order.cliente?.rut||'')}<br>
+                    <strong style="color:#061a53;">Dirección:</strong> ${escEmailHtml(order.cliente?.direccion||'')}
+                  </td>
+                  <td width="38%" style="width:38%;padding:10px;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:#111827;">
+                    <strong style="color:#061a53;">Ciudad / Comuna:</strong> ${escEmailHtml([order.cliente?.ciudad, order.cliente?.comuna].filter(Boolean).join(' / '))}<br>
+                    <strong style="color:#061a53;">Fecha:</strong> ${escEmailHtml(order.fecha||'')}<br>
+                    <strong style="color:#061a53;">Validez:</strong> ${escEmailHtml(order.validUntil||validUntilText(new Date(), order.validityDays))}
+                  </td>
+                </tr>
               </table>
               <div style="font-size:16px;font-weight:bold;color:#061a53;margin:18px 0 8px 0;">DETALLE</div>
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
@@ -2470,14 +2518,29 @@ function buildDocumentHtml(order) {
                 <tr><th style="${thStyle}">Código</th><th style="${thStyle}">Descripción</th><th style="${thStyle}text-align:center;">Cant.</th><th style="${thStyle}text-align:center;">Unidad</th><th style="${thStyle}text-align:right;"><div>P. Unitario</div><div style="font-size:9px;color:#64748b;font-weight:normal;margin-top:1px;">Neto / c IVA</div></th><th style="${lastThStyle}text-align:right;"><div>Subtotal</div><div style="font-size:9px;color:#64748b;font-weight:normal;margin-top:1px;">Neto / c IVA</div></th></tr>
                 ${itemRows || `<tr><td colspan="6" style="${rowStyle}">Sin productos</td></tr>`}
               </table>
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:6px;border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
-                <col style="width:81%;"><col style="width:19%;">
-                ${totalsRows}
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;table-layout:fixed;">
+                <tr>
+                  <td width="61%" style="width:61%;vertical-align:top;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.38;border:1px solid #061a53;padding:10px;">
+                      <strong style="color:#061a53;">Condición de pago</strong><br>${escEmailHtml(order.paymentCondition||'')}<br><br>
+                      <strong style="color:#061a53;">Observaciones</strong><br>${escEmailHtml(order.obs||'ninguna')}<br><br>
+                      <strong style="color:#061a53;">Validez hasta:</strong> ${escEmailHtml(order.validUntil||validUntilText(new Date(), order.validityDays))}
+                  </td>
+                  <td width="2%" style="width:2%;"></td>
+                  <td width="37%" style="width:37%;vertical-align:top;">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
+                      <col style="width:49%;"><col style="width:51%;">
+                      ${totalsRows}
+                    </table>
+                  </td>
+                </tr>
               </table>
-              <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;margin-top:16px;border:1px solid #061a53;padding:10px;"><strong style="color:#061a53;">Condición de pago</strong><br>${escEmailHtml(order.paymentCondition||'')}</div>
-              <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;margin-top:8px;border:1px solid #061a53;padding:10px;"><strong style="color:#061a53;">Observaciones</strong><br>${escEmailHtml(order.obs||'ninguna')}</div>
-              <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;margin-top:8px;border:1px solid #061a53;padding:8px;"><strong style="color:#061a53;">Validez hasta:</strong> ${escEmailHtml(order.validUntil||validUntilText(new Date(), order.validityDays))}</div>
               ${order.documentOffline?'<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#b45309;margin-top:10px;">* Correlativo provisorio generado sin conexión.</div>':''}
+                  </td>
+                </tr>
+              </table>
+              <div style="font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.45;color:#111827;margin-top:16px;">
+                ${closingHtml}
+              </div>
             </td>
           </tr>
         </table>
@@ -3280,24 +3343,37 @@ function emailResultMessage(result, recipients) {
 }
 
 function whatsappDocumentMessage(order) {
-  const totals = docTotals(order.items||[]);
   return [
-    `${order.documentTitle||'Documento'} ${order.documentNumber}`,
-    `Cliente: ${order.cliente?.nombre||''}`,
-    `Total neto: ${moneyPlain(totals.net)}`,
-    `Total c/IVA: ${moneyPlain(totals.total)}`,
-    order.paymentCondition ? `Condicion de pago: ${order.paymentCondition}` : '',
+    documentCustomerMainText(order, 'whatsapp'),
     '',
-    'Documento enviado por correo desde Centro Fitting.'
-  ].filter(v=>v!==null && v!==undefined).join('\n');
+    documentCustomerClosingText(order, 'whatsapp')
+  ].filter(v=>String(v||'').trim()).join('\n');
 }
 
-function openWhatsAppDocument(order, phone) {
+async function copyPlainText(text='') {
+  try {
+    if (!navigator.clipboard?.writeText) return false;
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+async function openWhatsAppDocument(order, phone) {
   const clean = normalizePhone(phone);
   if (!clean || !isValidChilePhone(clean)) return false;
   const digits = clean.replace(/\D/g,'');
-  const url = `https://wa.me/${digits}?text=${encodeURIComponent(whatsappDocumentMessage(order))}`;
+  const message = whatsappDocumentMessage(order);
+  await copyPlainText(message);
+  try {
+    setLoadingText('Abriendo PDF para WhatsApp...');
+    const record = await getOrderPdfRecord(order);
+    if (record?.base64) openPdfRecord(record);
+  } catch(e) {}
+  const url = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
   window.open(url, '_blank', 'noopener');
+  toast('PDF abierto y texto copiado para WhatsApp','ok');
   return true;
 }
 
@@ -3422,7 +3498,10 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     if(idx!==-1) saved[idx]=orderData;
     LS.set('orders',saved);
     syncOrderToFirebase(orderData);
-    if (recipients.clientPhone) openWhatsAppDocument(orderData, recipients.clientPhone);
+    if (recipients.clientPhone) {
+      setLoadingText('Preparando WhatsApp...');
+      await openWhatsAppDocument(orderData, recipients.clientPhone);
+    }
     clearCurrentPedido(); updateHistDot();
     goTab('buscar');
     document.getElementById('inp-buscar').value=''; renderSearch('');
