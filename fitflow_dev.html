@@ -662,6 +662,8 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
       <div><label class="modal-lbl">Dirección</label><input class="modal-inp" id="nc-direccion" placeholder="Dirección" autocomplete="off" style="margin-bottom:0"></div>
       <div><label class="modal-lbl">Comuna</label><input class="modal-inp" id="nc-comuna" placeholder="Comuna" autocomplete="off" style="margin-bottom:0"></div>
       <div><label class="modal-lbl">Ciudad</label><input class="modal-inp" id="nc-ciudad" placeholder="Ciudad" autocomplete="off" style="margin-bottom:0"></div>
+      <div><label class="modal-lbl">Correo</label><input class="modal-inp" id="nc-email" type="email" placeholder="cliente@empresa.cl" autocomplete="email" onfocus="this.select()" style="margin-bottom:0"></div>
+      <div><label class="modal-lbl">WhatsApp</label><input class="modal-inp" id="nc-phone" type="tel" inputmode="numeric" placeholder="912345678" autocomplete="tel" onfocus="this.select()" style="margin-bottom:0"></div>
       <div style="display:flex;gap:8px;">
         <button class="btn-cancel" style="flex:1;padding:11px;border-radius:var(--r);border:none;font-size:13px;font-weight:700;font-family:'Barlow',sans-serif;cursor:pointer;" onclick="hideNewCliForm()">Cancelar</button>
         <button class="btn-confirm" style="flex:1;padding:11px;border-radius:var(--r);border:none;font-size:13px;font-weight:700;font-family:'Barlow',sans-serif;cursor:pointer;" onclick="saveNewCli()">Guardar</button>
@@ -1184,6 +1186,7 @@ async function loadFromFirebase() {
     await loadLogoFromFirebase('login');
     await loadLogoFromFirebase('header');
     await loadLogoFromFirebase('document');
+    await loadManualContactsFromFirebase();
     updateLogoMetaUI();
     // Orders
     const localOrders = visibleOrders(LS.get('orders') || []);
@@ -2124,11 +2127,77 @@ function normalizePhone(v) {
 }
 function isValidChilePhone(v) { return /^\+56\d{9}$/.test(normalizePhone(v)); }
 function clientKey(c) { return normalizeRut(c?.rut||'') || String(c?.nombre||'').trim().toLowerCase(); }
+function clientManualContactDocId(c) { return encodeURIComponent(clientKey(c) || 'sin-cliente'); }
+function manualContactsMap() { return LS.get('client_manual_contacts') || {}; }
+function manualContactUpdatedMs(contact) { return Date.parse(contact?.updatedAt || '') || 0; }
+function officialClientsUpdatedMs() { return Date.parse(LS.get('clients_updated_at') || '') || 0; }
+function chooseClientContactValue(officialValue, manualContact, field) {
+  const manualValue = String(manualContact?.[field] || '').trim();
+  const cleanOfficial = field === 'phone' ? normalizePhone(officialValue) : normalizeEmail(officialValue);
+  if (!cleanOfficial) return manualValue;
+  if (!manualValue) return cleanOfficial;
+  return officialClientsUpdatedMs() > manualContactUpdatedMs(manualContact) ? cleanOfficial : manualValue;
+}
+function upsertManualClientContact(c, patch) {
+  const key = clientKey(c);
+  if (!key) return null;
+  const map = manualContactsMap();
+  const now = new Date().toISOString();
+  const current = map[key] || {};
+  const next = {
+    ...current,
+    key,
+    rut: normalizeRut(c?.rut || current.rut || ''),
+    nombre: c?.nombre || current.nombre || '',
+    updatedAt: now,
+    updatedBy: currentUser?.name || current.updatedBy || 'Usuario',
+    ...patch
+  };
+  map[key] = next;
+  LS._setLocal('client_manual_contacts', map);
+  syncManualClientContactToFirebase(next);
+  return next;
+}
+function mergeManualContacts(localMap={}, remoteList=[]) {
+  const merged = {...localMap};
+  (remoteList||[]).forEach(contact => {
+    const key = contact?.key || clientKey(contact);
+    if (!key) return;
+    const current = merged[key];
+    if (!current || manualContactUpdatedMs(contact) >= manualContactUpdatedMs(current)) {
+      merged[key] = {...contact, key};
+    }
+  });
+  return merged;
+}
+async function loadManualContactsFromFirebase() {
+  if (!window._fbDB || !window._fbSDK?.getDocs) return;
+  try {
+    const { getDocs, collection } = window._fbSDK;
+    const snap = await getDocs(collection(window._fbDB, 'client_manual_contacts_dev'));
+    const remote = snap.docs.map(d => d.data()).filter(Boolean);
+    if (remote.length) {
+      LS._setLocal('client_manual_contacts', mergeManualContacts(manualContactsMap(), remote));
+    }
+  } catch(e) {
+    console.log('Manual contacts sync error:', e?.message || e);
+  }
+}
+function syncManualClientContactToFirebase(contact) {
+  if (!window._fbDB || !window._fbSDK?.setDoc || !contact?.key) return;
+  const { setDoc, doc } = window._fbSDK;
+  setDoc(doc(window._fbDB, 'client_manual_contacts_dev', encodeURIComponent(contact.key)), contact, {merge:true})
+    .catch(e => console.log('Manual contact save error:', e?.message || e));
+}
 function getStoredClientEmail(c) {
   const key = clientKey(c);
   if (!key) return '';
+  const manual = manualContactsMap()[key];
+  const official = c?.email ? normalizeEmail(c.email) : '';
+  const selected = chooseClientContactValue(official, manual, 'email');
+  if (selected) return selected;
   const map = LS.get('client_emails') || {};
-  if (map[key]) return map[key];
+  if (map[key] && !official) return map[key];
   const temp = (LS.get('temp_clients')||[]).find(x => clientKey(x) === key);
   return temp?.email || '';
 }
@@ -2139,6 +2208,7 @@ function saveClientEmail(c, email) {
   const map = LS.get('client_emails') || {};
   map[key] = clean;
   LS._setLocal('client_emails', map);
+  upsertManualClientContact(c, {email:clean});
   const tempClients = LS.get('temp_clients') || [];
   const idx = tempClients.findIndex(x => clientKey(x) === key);
   if (idx >= 0) tempClients[idx] = {...tempClients[idx], email:clean, updatedAt:new Date().toISOString()};
@@ -2148,8 +2218,12 @@ function saveClientEmail(c, email) {
 function getStoredClientPhone(c) {
   const key = clientKey(c);
   if (!key) return '';
+  const manual = manualContactsMap()[key];
+  const official = normalizePhone(c?.phone || c?.celular || '');
+  const selected = chooseClientContactValue(official, manual, 'phone');
+  if (selected) return selected;
   const map = LS.get('client_phones') || {};
-  return map[key] || '';
+  return official || map[key] || '';
 }
 function saveClientPhone(c, phone) {
   const clean = normalizePhone(phone);
@@ -2158,6 +2232,7 @@ function saveClientPhone(c, phone) {
   const map = LS.get('client_phones') || {};
   map[key] = clean;
   LS._setLocal('client_phones', map);
+  upsertManualClientContact(c, {phone:clean});
 }
 
 function cartQty(i,d)  { cart[i].qty=Math.max(1,(parseInt(cart[i].qty)||1)+d); updateCartDot(); renderCart(); }
@@ -3946,21 +4021,29 @@ function saveNewCli() {
         rut=normalizeRut(document.getElementById('nc-rut').value.trim()),
         direccion=document.getElementById('nc-direccion').value.trim(),
         comuna=document.getElementById('nc-comuna').value.trim(),
-        ciudad=document.getElementById('nc-ciudad').value.trim();
+        ciudad=document.getElementById('nc-ciudad').value.trim(),
+        email=normalizeEmail(document.getElementById('nc-email')?.value||''),
+        phone=normalizePhone(document.getElementById('nc-phone')?.value||'');
   if(!nombre||!rut){toast('Nombre y RUT son obligatorios','err');return;}
+  if(email && !isValidEmail(email)){toast('Ingresa un correo válido para el cliente','err');return;}
+  if(phone && !isValidChilePhone(phone)){toast('Telefono WhatsApp debe tener 9 digitos, ej: 912345678','err');return;}
   const official = clients.find(c => normalizeRut(c.rut) === rut);
   if (official) {
+    if (email) saveClientEmail(official, email);
+    if (phone) saveClientPhone(official, phone);
     selectClient(official); hideNewCliForm();
-    ['nc-nombre','nc-rut','nc-direccion','nc-comuna','nc-ciudad'].forEach(id=>document.getElementById(id).value='');
+    ['nc-nombre','nc-rut','nc-direccion','nc-comuna','nc-ciudad','nc-email','nc-phone'].forEach(id=>document.getElementById(id).value='');
     toast('Cliente ya existe en base oficial ✓','ok');
     return;
   }
-  const c={rut,nombre,direccion,comuna,ciudad,temp:true,createdAt:new Date().toISOString(),createdBy:currentUser?.name||''};
+  const c={rut,nombre,direccion,comuna,ciudad,email,phone,temp:true,createdAt:new Date().toISOString(),createdBy:currentUser?.name||''};
   const tempClients = (LS.get('temp_clients')||[]).filter(x => normalizeRut(x.rut) !== rut);
   tempClients.unshift(c);
   LS._setLocal('temp_clients', tempClients);
+  if (email) saveClientEmail(c, email);
+  if (phone) saveClientPhone(c, phone);
   selectClient(c); hideNewCliForm();
-  ['nc-nombre','nc-rut','nc-direccion','nc-comuna','nc-ciudad'].forEach(id=>document.getElementById(id).value='');
+  ['nc-nombre','nc-rut','nc-direccion','nc-comuna','nc-ciudad','nc-email','nc-phone'].forEach(id=>document.getElementById(id).value='');
   toast('Cliente temporal guardado en este equipo ✓','ok');
 }
 
@@ -4361,12 +4444,16 @@ function parseClientRows(rows) {
   return rows.map(r => {
     const rutRaw = rowVal(r,['RUT','RUT CLIENTE','rutcliente','Etiquetas de fila','rut']);
     const compact = String(rutRaw||'').replace(/[^0-9kK]/g,'');
+    const email = normalizeEmail(rowVal(r,['CORREO','EMAIL','MAIL','correocont','correo contacto','email contacto']));
+    const phone = normalizePhone(rowVal(r,['CELULAR','TELEFONO','TELÉFONO','MOVIL','MÓVIL','WHATSAPP','celular']));
     return {
       rut: normalizeRut(rutRaw),
       nombre: String(rowVal(r,['NOMBRE','NOMBRE CLI','nombreclie','RAZON SOCIAL','CLIENTE','nombre'])||'').replace(/^\|+/,'').trim(),
       direccion: String(rowVal(r,['DIRECCION','DIRECCIÓN','direccion'])||'').trim(),
       comuna: String(rowVal(r,['COMUNA','comuna'])||'').trim(),
       ciudad: String(rowVal(r,['CIUDAD','CIUDAD CLIENTE','ciudad'])||'').trim(),
+      email: isValidEmail(email) ? email : '',
+      phone: isValidChilePhone(phone) ? phone : '',
       _rutLen: compact.length
     };
   }).filter(c => {
