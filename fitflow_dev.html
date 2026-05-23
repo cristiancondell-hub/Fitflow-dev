@@ -2117,9 +2117,10 @@ function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEma
 function normalizePhone(v) {
   const digits = String(v||'').replace(/\D/g,'');
   if (!digits) return '';
-  if (digits.startsWith('56')) return '+'+digits;
+  if (digits.length === 11 && digits.startsWith('56')) return '+'+digits;
+  if (digits.length === 10 && digits.startsWith('9')) return '+56'+digits.slice(-9);
   if (digits.length === 9) return '+56'+digits;
-  return digits.startsWith('+') ? digits : '+'+digits;
+  return '+'+digits;
 }
 function isValidChilePhone(v) { return /^\+56\d{9}$/.test(normalizePhone(v)); }
 function clientKey(c) { return normalizeRut(c?.rut||'') || String(c?.nombre||'').trim().toLowerCase(); }
@@ -3249,7 +3250,7 @@ function openSendClientModal(docType) {
   <label class="modal-lbl" style="margin-top:10px;">Correo en copia (opcional)</label>
   <input class="modal-inp" id="send-client-cc-email" type="email" placeholder="copia@empresa.cl" autocomplete="email">
   <label class="modal-lbl" style="margin-top:10px;">Telefono WhatsApp cliente (opcional)</label>
-  <input class="modal-inp" id="send-client-phone" type="tel" inputmode="numeric" value="${escEmailHtml(suggestedPhone)}" placeholder="+56 912345678" autocomplete="tel">
+  <input class="modal-inp" id="send-client-phone" type="tel" inputmode="numeric" value="${escEmailHtml(suggestedPhone)}" placeholder="912345678" autocomplete="tel">
   <div class="modal-btns" style="margin-top:14px;">
     <button class="btn-confirm-green" onclick="sendPedido('${docType}','both')">Enviar a central + cliente</button>
     <button class="btn-cancel" onclick="openSendDestinationModal('${docType}')">Volver</button>
@@ -3394,7 +3395,7 @@ async function openWhatsAppDocument(order, phone) {
   const digits = clean.replace(/\D/g,'');
   const message = whatsappDocumentMessage(order);
   const copied = await copyPlainText(message);
-  const url = `https://api.whatsapp.com/send?phone=${digits}&text=${encodeURIComponent(message)}`;
+  const url = `https://wa.me/${digits}`;
   window.open(url, '_blank', 'noopener');
   let pdfReady = false;
   try {
@@ -3406,7 +3407,7 @@ async function openWhatsAppDocument(order, phone) {
     }
   } catch(e) {}
   setTimeout(()=>copyPlainText(message), 300);
-  toast(copied ? `${pdfReady ? 'PDF descargado' : 'PDF no disponible'} y texto copiado para WhatsApp` : 'WhatsApp lleva el texto del mensaje','ok');
+  toast(copied ? `${pdfReady ? 'PDF descargado' : 'PDF no disponible'} y texto copiado para pegar en WhatsApp` : 'WhatsApp abierto sin texto','ok');
   return true;
 }
 
@@ -3434,7 +3435,7 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
   if (sendMode === 'both' && !clientEmail && !clientPhone) { toast('Ingresa correo o WhatsApp del cliente','err'); return; }
   if (clientEmail && !isValidEmail(clientEmail)) { toast('Ingresa un correo válido para el cliente','err'); return; }
   if (clientCcEmail && !isValidEmail(clientCcEmail)) { toast('Ingresa un correo valido para la copia','err'); return; }
-  if (clientPhone && !isValidChilePhone(clientPhone)) { toast('Telefono WhatsApp debe usar formato +56 912345678','err'); return; }
+  if (clientPhone && !isValidChilePhone(clientPhone)) { toast('Telefono WhatsApp debe tener 9 digitos, ej: 912345678','err'); return; }
   if (clientEmail) saveClientEmail(selectedClient, clientEmail);
   if (clientPhone) saveClientPhone(selectedClient, clientPhone);
   closeModal();
