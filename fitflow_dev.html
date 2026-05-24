@@ -1723,17 +1723,35 @@ function openResetPasswordModal(email, oobCode) {
   window._pendingResetPassword = {email, oobCode};
   openModal(`<div class="modal-title">Crear nueva contraseña</div>
     <div class="modal-sub">${escEmailHtml(email)}</div>
+    <form id="reset-password-form" autocomplete="on" onsubmit="event.preventDefault();confirmNewPassword();">
     <label class="modal-lbl">Correo</label>
-    <input class="modal-inp" id="reset-email" name="email" type="email" value="${escEmailHtml(email)}" autocomplete="username" readonly style="background:#f3f6ff;">
+    <input class="modal-inp" id="reset-email" name="username" type="email" value="${escEmailHtml(email)}" autocomplete="username" readonly style="background:#f3f6ff;">
+    <input type="text" name="email" value="${escEmailHtml(email)}" autocomplete="username" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
     <label class="modal-lbl">Nueva contraseña</label>
     <input class="modal-inp" id="new-password" name="new-password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" onkeydown="if(event.key==='Enter') confirmNewPassword()">
     <label class="modal-lbl">Repetir contraseña</label>
     <input class="modal-inp" id="new-password-confirm" name="new-password-confirm" type="password" placeholder="Repetir contraseña" autocomplete="new-password" onkeydown="if(event.key==='Enter') confirmNewPassword()">
     <div class="modal-btns" style="margin-top:14px;">
-      <button class="btn-confirm-green" onclick="confirmNewPassword()">Guardar contraseña</button>
-      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-    </div>`);
+      <button class="btn-confirm-green" type="submit">Guardar contraseña</button>
+      <button class="btn-cancel" type="button" onclick="closeModal()">Cancelar</button>
+    </div>
+    </form>`);
   setTimeout(()=>document.getElementById('new-password')?.focus(),80);
+}
+
+async function rememberPasswordCredential(email, password) {
+  try {
+    if (!window.PasswordCredential || !navigator.credentials?.store) return false;
+    const credential = new PasswordCredential({
+      id: email,
+      name: email,
+      password
+    });
+    await navigator.credentials.store(credential);
+    return true;
+  } catch(e) {
+    return false;
+  }
 }
 
 async function confirmNewPassword() {
@@ -1750,6 +1768,7 @@ async function confirmNewPassword() {
   try {
     showLoading('Guardando contraseña...');
     await window._fbSDK.confirmPasswordReset(window._fbAuth, pending.oobCode, pass);
+    await rememberPasswordCredential(pending.email, pass);
     hideLoading();
     closeModal();
     window._pendingResetPassword = null;
