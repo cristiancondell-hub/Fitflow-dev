@@ -1159,9 +1159,10 @@ async function fetchPdfFromFirebase(docId) {
   } catch(e) { return null; }
 }
 
-async function loadFromFirebase() {
+async function loadFromFirebase(opts={}) {
   if (!window._fbDB) return;
-  showLoading('Verificando actualizaciones...');
+  const blocking = opts.blocking !== false;
+  if (blocking) showLoading('Verificando actualizaciones...');
   try {
     const { getDoc, doc, getDocs, collection } = window._fbSDK;
     const db = window._fbDB;
@@ -1197,7 +1198,6 @@ async function loadFromFirebase() {
     await loadLogoFromFirebase('login');
     await loadLogoFromFirebase('header');
     await loadLogoFromFirebase('document');
-    await loadManualContactsFromFirebase();
     updateLogoMetaUI();
     // Orders
     const localOrders = visibleOrders(LS.get('orders') || []);
@@ -1307,8 +1307,9 @@ async function loadFromFirebase() {
         }
       }
     }
+    await loadManualContactsFromFirebase();
   } catch(e) { console.log('Firebase sync error:', e.message); }
-  finally { hideLoading(); }
+  finally { if (blocking) hideLoading(); }
 }
 
 async function preloadLoginConfig() {
@@ -1356,14 +1357,14 @@ function refreshAfterSync() {
 async function syncAfterLogin() {
   if (!currentUser || firebaseSyncStarted || !window._fbDB) return;
   firebaseSyncStarted = true;
-  await loadFromFirebase();
+  await loadFromFirebase({blocking:false});
   refreshAfterSync();
   retryOrderSync();
 }
 
 async function refreshFirebaseData() {
   if (!currentUser || !window._fbDB) return;
-  await loadFromFirebase();
+  await loadFromFirebase({blocking:false});
   refreshAfterSync();
   retryOrderSync();
 }
