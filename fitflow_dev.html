@@ -299,6 +299,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .login-sep::before,.login-sep::after{content:'';height:1px;background:rgba(255,255,255,.16);flex:1;}
 .btn-google-login{width:100%;padding:12px;border-radius:var(--r);border:1px solid rgba(255,255,255,.22);background:#fff;color:#172554;font-size:14px;font-weight:800;font-family:'Barlow',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;}
 .btn-google-login svg{width:18px;height:18px;display:block;}
+.btn-email-login{width:100%;padding:12px;border-radius:var(--r);border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12);color:#fff;font-size:14px;font-weight:800;font-family:'Barlow',sans-serif;cursor:pointer;margin-top:8px;}
 .login-help{margin-top:9px;color:rgba(255,255,255,.48);font-size:11px;font-weight:600;line-height:1.3;text-align:center;}
 
 /* ── MODAL ── */
@@ -413,6 +414,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
       <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.1c-.22-.66-.35-1.36-.35-2.1s.13-1.44.35-2.1V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06L5.84 9.9C6.71 7.3 9.14 5.38 12 5.38z"/></svg>
       Ingresar con Google
     </button>
+    <button class="btn-email-login" onclick="openEmailLoginModal()">Ingresar con correo</button>
     <div class="login-help">El correo debe estar autorizado en Admin.</div>
   </div>
 </div>
@@ -1563,6 +1565,13 @@ function doLogin() {
 }
 document.getElementById('pin-input').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
 
+function findAuthorizedVendorByEmail(email) {
+  const clean = normalizeEmail(email);
+  const vendors = LS.get('vendors')||DEFAULT_VENDORS;
+  const idx = vendors.findIndex(v => normalizeEmail(v.email||'') === clean);
+  return idx >= 0 ? {vendor:vendors[idx], idx} : null;
+}
+
 async function doGoogleLogin() {
   const err = document.getElementById('pin-err');
   if (err) err.textContent = '';
@@ -1580,15 +1589,14 @@ async function doGoogleLogin() {
       if (err) err.textContent = 'Google no entregó correo';
       return;
     }
-    const vendors = LS.get('vendors')||DEFAULT_VENDORS;
-    const idx = vendors.findIndex(v => normalizeEmail(v.email||'') === email);
-    if (idx < 0) {
+    const authorized = findAuthorizedVendorByEmail(email);
+    if (!authorized) {
       await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
       if (err) err.textContent = 'Correo no autorizado en FitFlow';
       toast('Correo Google no autorizado en Admin','err');
       return;
     }
-    enterWithVendor(vendors[idx], idx, {provider:'google', email});
+    enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email});
   } catch(e) {
     hideLoading();
     const code = e?.code || '';
@@ -1600,6 +1608,77 @@ async function doGoogleLogin() {
     console.log('Google login error:', code, e?.message || e);
     if (err) err.textContent = msg;
     toast(msg,'warn');
+  }
+}
+
+function openEmailLoginModal() {
+  openModal(`<div class="modal-title">Ingresar con correo</div>
+    <div class="modal-sub">Usa el correo autorizado en Admin.</div>
+    <label class="modal-lbl">Correo</label>
+    <input class="modal-inp" id="auth-email" type="email" placeholder="usuario@empresa.cl" autocomplete="email" onfocus="this.select()">
+    <label class="modal-lbl">Contraseña</label>
+    <input class="modal-inp" id="auth-pass" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter') doEmailPasswordLogin()">
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="btn-confirm-green" onclick="doEmailPasswordLogin()">Ingresar</button>
+      <button class="btn-cancel" onclick="sendPasswordReset()">Activar / recuperar</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('auth-email')?.focus(),80);
+}
+
+function firebaseAuthErrorMessage(e) {
+  const code = e?.code || '';
+  if (code === 'auth/invalid-email') return 'Correo inválido';
+  if (code === 'auth/user-not-found') return 'Correo sin contraseña activa';
+  if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Correo o contraseña incorrectos';
+  if (code === 'auth/too-many-requests') return 'Demasiados intentos. Intenta más tarde';
+  if (code === 'auth/operation-not-allowed') return 'Correo/contraseña no está habilitado en Firebase';
+  return code ? `Acceso correo: ${code}` : 'No se pudo ingresar con correo';
+}
+
+async function doEmailPasswordLogin() {
+  const email = normalizeEmail(document.getElementById('auth-email')?.value||'');
+  const pass = document.getElementById('auth-pass')?.value||'';
+  if (!isValidEmail(email)) { toast('Ingresa un correo válido','err'); return; }
+  if (!pass) { toast('Ingresa la contraseña','err'); return; }
+  const authorized = findAuthorizedVendorByEmail(email);
+  if (!authorized) { toast('Correo no autorizado en FitFlow','err'); return; }
+  if (!window._fbAuth || !window._fbSDK?.signInWithEmailAndPassword) {
+    toast('Acceso con correo no disponible todavía','err');
+    return;
+  }
+  try {
+    closeModal();
+    showLoading('Validando usuario...');
+    const result = await window._fbSDK.signInWithEmailAndPassword(window._fbAuth, email, pass);
+    const authEmail = normalizeEmail(result?.user?.email || email);
+    hideLoading();
+    const confirmed = findAuthorizedVendorByEmail(authEmail);
+    if (!confirmed) {
+      await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
+      toast('Correo no autorizado en FitFlow','err');
+      return;
+    }
+    enterWithVendor(confirmed.vendor, confirmed.idx, {provider:'email', email:authEmail});
+  } catch(e) {
+    hideLoading();
+    toast(firebaseAuthErrorMessage(e),'err');
+  }
+}
+
+async function sendPasswordReset() {
+  const email = normalizeEmail(document.getElementById('auth-email')?.value||'');
+  if (!isValidEmail(email)) { toast('Ingresa un correo válido','err'); return; }
+  if (!findAuthorizedVendorByEmail(email)) { toast('Correo no autorizado en FitFlow','err'); return; }
+  if (!window._fbAuth || !window._fbSDK?.sendPasswordResetEmail) {
+    toast('Recuperación no disponible todavía','err');
+    return;
+  }
+  try {
+    await window._fbSDK.sendPasswordResetEmail(window._fbAuth, email);
+    toast('Correo enviado para activar o recuperar contraseña','ok','long');
+  } catch(e) {
+    toast(firebaseAuthErrorMessage(e),'err');
   }
 }
 
@@ -4745,7 +4824,7 @@ updatePriceModeButtons();
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyC0KNVxpJGnwA5RKLWheZL1h8zPqfC4GB0",
@@ -4764,7 +4843,7 @@ updatePriceModeButtons();
   window._fbDB  = db;
   window._fbAuth = auth;
   window._fbGoogleProvider = googleProvider;
-  window._fbSDK = { getDoc, setDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signOut };
+  window._fbSDK = { getDoc, setDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, signOut };
 
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
   if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
