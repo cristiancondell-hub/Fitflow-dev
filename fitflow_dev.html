@@ -1633,7 +1633,14 @@ function firebaseAuthErrorMessage(e) {
   if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Correo o contraseña incorrectos';
   if (code === 'auth/too-many-requests') return 'Demasiados intentos. Intenta más tarde';
   if (code === 'auth/operation-not-allowed') return 'Correo/contraseña no está habilitado en Firebase';
+  if (code === 'auth/expired-action-code') return 'El enlace venció. Solicita uno nuevo';
+  if (code === 'auth/invalid-action-code') return 'El enlace no es válido o ya fue usado';
+  if (code === 'auth/weak-password') return 'La contraseña debe tener al menos 6 caracteres';
   return code ? `Acceso correo: ${code}` : 'No se pudo ingresar con correo';
+}
+
+function currentFitFlowAuthUrl() {
+  return window.location.origin + window.location.pathname;
 }
 
 async function doEmailPasswordLogin() {
@@ -1675,11 +1682,80 @@ async function sendPasswordReset() {
     return;
   }
   try {
-    await window._fbSDK.sendPasswordResetEmail(window._fbAuth, email);
+    await window._fbSDK.sendPasswordResetEmail(window._fbAuth, email, {
+      url: currentFitFlowAuthUrl(),
+      handleCodeInApp: true
+    });
     closeModal();
     toast('Correo enviado para activar o recuperar contraseña','ok','long');
   } catch(e) {
     toast(firebaseAuthErrorMessage(e),'err');
+  }
+}
+
+async function handleFirebaseAuthAction() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('mode');
+  const oobCode = params.get('oobCode');
+  const isResetAction = mode === 'resetPassword' || mode === 'action';
+  if (!isResetAction || !oobCode) return;
+  if (!window._fbAuth || !window._fbSDK?.verifyPasswordResetCode) return;
+  try {
+    showLoading('Validando enlace...');
+    const email = normalizeEmail(await window._fbSDK.verifyPasswordResetCode(window._fbAuth, oobCode));
+    hideLoading();
+    if (!findAuthorizedVendorByEmail(email)) {
+      toast('Correo no autorizado en FitFlow','err');
+      return;
+    }
+    openResetPasswordModal(email, oobCode);
+  } catch(e) {
+    hideLoading();
+    toast(firebaseAuthErrorMessage(e),'err','long');
+  } finally {
+    if (isResetAction) {
+      history.replaceState(null, document.title, currentFitFlowAuthUrl());
+    }
+  }
+}
+
+function openResetPasswordModal(email, oobCode) {
+  window._pendingResetPassword = {email, oobCode};
+  openModal(`<div class="modal-title">Crear nueva contraseña</div>
+    <div class="modal-sub">${escEmailHtml(email)}</div>
+    <label class="modal-lbl">Nueva contraseña</label>
+    <input class="modal-inp" id="new-password" name="new-password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" onkeydown="if(event.key==='Enter') confirmNewPassword()">
+    <label class="modal-lbl">Repetir contraseña</label>
+    <input class="modal-inp" id="new-password-confirm" name="new-password-confirm" type="password" placeholder="Repetir contraseña" autocomplete="new-password" onkeydown="if(event.key==='Enter') confirmNewPassword()">
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="btn-confirm-green" onclick="confirmNewPassword()">Guardar contraseña</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    </div>`);
+  setTimeout(()=>document.getElementById('new-password')?.focus(),80);
+}
+
+async function confirmNewPassword() {
+  const pending = window._pendingResetPassword;
+  const pass = document.getElementById('new-password')?.value || '';
+  const pass2 = document.getElementById('new-password-confirm')?.value || '';
+  if (!pending?.oobCode) { toast('Enlace no disponible','err'); return; }
+  if (pass.length < 6) { toast('La contraseña debe tener al menos 6 caracteres','err'); return; }
+  if (pass !== pass2) { toast('Las contraseñas no coinciden','err'); return; }
+  if (!window._fbAuth || !window._fbSDK?.confirmPasswordReset) {
+    toast('Cambio de contraseña no disponible todavía','err');
+    return;
+  }
+  try {
+    showLoading('Guardando contraseña...');
+    await window._fbSDK.confirmPasswordReset(window._fbAuth, pending.oobCode, pass);
+    hideLoading();
+    closeModal();
+    window._pendingResetPassword = null;
+    toast('Contraseña actualizada. Ya puedes ingresar con correo','ok','long');
+    setTimeout(()=>openEmailLoginModal(),300);
+  } catch(e) {
+    hideLoading();
+    toast(firebaseAuthErrorMessage(e),'err','long');
   }
 }
 
@@ -4825,7 +4901,7 @@ updatePriceModeButtons();
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyC0KNVxpJGnwA5RKLWheZL1h8zPqfC4GB0",
@@ -4844,10 +4920,11 @@ updatePriceModeButtons();
   window._fbDB  = db;
   window._fbAuth = auth;
   window._fbGoogleProvider = googleProvider;
-  window._fbSDK = { getDoc, setDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, signOut };
+  window._fbSDK = { getDoc, setDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
 
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
   if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
+  if (typeof handleFirebaseAuthAction === 'function') handleFirebaseAuthAction();
   // La sincronizacion pesada queda despues del login.
   if (typeof syncAfterLogin === 'function') syncAfterLogin();
 </script>
