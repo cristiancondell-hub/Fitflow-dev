@@ -1723,6 +1723,8 @@ function openResetPasswordModal(email, oobCode) {
   window._pendingResetPassword = {email, oobCode};
   openModal(`<div class="modal-title">Crear nueva contraseña</div>
     <div class="modal-sub">${escEmailHtml(email)}</div>
+    <label class="modal-lbl">Correo</label>
+    <input class="modal-inp" id="reset-email" name="email" type="email" value="${escEmailHtml(email)}" autocomplete="username" readonly style="background:#f3f6ff;">
     <label class="modal-lbl">Nueva contraseña</label>
     <input class="modal-inp" id="new-password" name="new-password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" onkeydown="if(event.key==='Enter') confirmNewPassword()">
     <label class="modal-lbl">Repetir contraseña</label>
