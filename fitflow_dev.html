@@ -1615,15 +1615,15 @@ function openEmailLoginModal() {
   openModal(`<div class="modal-title">Ingresar con correo</div>
     <div class="modal-sub">Usa el correo autorizado en Admin.</div>
     <label class="modal-lbl">Correo</label>
-    <input class="modal-inp" id="auth-email" type="email" placeholder="usuario@empresa.cl" autocomplete="email" onfocus="this.select()">
+    <input class="modal-inp" id="email" name="email" type="email" placeholder="usuario@empresa.cl" autocomplete="username" onfocus="this.select()">
     <label class="modal-lbl">Contraseña</label>
-    <input class="modal-inp" id="auth-pass" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter') doEmailPasswordLogin()">
+    <input class="modal-inp" id="password" name="password" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter') doEmailPasswordLogin()">
     <div class="modal-btns" style="margin-top:14px;">
       <button class="btn-confirm-green" onclick="doEmailPasswordLogin()">Ingresar</button>
       <button class="btn-cancel" onclick="sendPasswordReset()">Activar / recuperar</button>
       <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
     </div>`);
-  setTimeout(()=>document.getElementById('auth-email')?.focus(),80);
+  setTimeout(()=>document.getElementById('email')?.focus(),80);
 }
 
 function firebaseAuthErrorMessage(e) {
@@ -1637,8 +1637,8 @@ function firebaseAuthErrorMessage(e) {
 }
 
 async function doEmailPasswordLogin() {
-  const email = normalizeEmail(document.getElementById('auth-email')?.value||'');
-  const pass = document.getElementById('auth-pass')?.value||'';
+  const email = normalizeEmail(document.getElementById('email')?.value||'');
+  const pass = document.getElementById('password')?.value||'';
   if (!isValidEmail(email)) { toast('Ingresa un correo válido','err'); return; }
   if (!pass) { toast('Ingresa la contraseña','err'); return; }
   const authorized = findAuthorizedVendorByEmail(email);
@@ -1667,7 +1667,7 @@ async function doEmailPasswordLogin() {
 }
 
 async function sendPasswordReset() {
-  const email = normalizeEmail(document.getElementById('auth-email')?.value||'');
+  const email = normalizeEmail(document.getElementById('email')?.value||'');
   if (!isValidEmail(email)) { toast('Ingresa un correo válido','err'); return; }
   if (!findAuthorizedVendorByEmail(email)) { toast('Correo no autorizado en FitFlow','err'); return; }
   if (!window._fbAuth || !window._fbSDK?.sendPasswordResetEmail) {
@@ -1676,6 +1676,7 @@ async function sendPasswordReset() {
   }
   try {
     await window._fbSDK.sendPasswordResetEmail(window._fbAuth, email);
+    closeModal();
     toast('Correo enviado para activar o recuperar contraseña','ok','long');
   } catch(e) {
     toast(firebaseAuthErrorMessage(e),'err');
