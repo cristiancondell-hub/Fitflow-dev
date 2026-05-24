@@ -1572,7 +1572,7 @@ async function doGoogleLogin() {
     return;
   }
   try {
-    showLoading('Abriendo Google...');
+    showLoading('Validando usuario...');
     const result = await window._fbSDK.signInWithPopup(window._fbAuth, window._fbGoogleProvider);
     const email = normalizeEmail(result?.user?.email || '');
     hideLoading();
