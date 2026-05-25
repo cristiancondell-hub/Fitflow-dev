@@ -3453,7 +3453,7 @@ function flatZero(v, w) {
 function flatRut(v='') {
   const compact = String(v||'').replace(/[^0-9kK]/g,'').toUpperCase();
   const rut = compact.length > 1 ? compact.slice(0,-1)+'-'+compact.slice(-1) : compact;
-  return flatLeft(rut, 10);
+  return flatRight(rut, 10);
 }
 function flatQty(v) {
   const n = Math.max(0, Number(v)||0);
