@@ -503,7 +503,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             </select>
           </div>
         </div>
-        <input class="cart-obs" id="cart-obs" type="text" placeholder="Obs:">
+        <input class="cart-obs" id="cart-obs" type="text" placeholder="Obs:" oninput="protectPickupObservation(this)" onkeydown="guardPickupObservationKey(event,this)" onclick="keepPickupCursorEditable(this)" onfocus="keepPickupCursorEditable(this)">
         <div class="cart-action-btns">
           <button class="btn-delete" onclick="openDeletePedidoModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
@@ -1410,7 +1410,11 @@ function updateProductMetaUI() {
 function updateProductLogUI() {
   const el = document.getElementById('adm-prod-log');
   const log = LS.get('product_import_log');
-  if (el && log) el.textContent = `${log.loaded||0} cargados · ${log.withoutCode||0} sin código · ${log.repeatedCodes||0} códigos repetidos`;
+  if (el && log) {
+    const fb = log.firebaseSync;
+    const fbText = fb ? (fb.ok ? 'Firebase verificado' : `Firebase sin confirmar: ${fb.stage || 'publicación'}`) : 'Firebase pendiente';
+    el.textContent = `${log.loaded||0} cargados · ${log.withoutCode||0} sin código · ${log.repeatedCodes||0} códigos repetidos · ${fbText}`;
+  }
 }
 function updateClientLogUI() {
   const el = document.getElementById('adm-cli-log');
@@ -1439,6 +1443,8 @@ function showClientImportLog() {
 function showProductImportLog() {
   const log = LS.get('product_import_log');
   if (!log) { toast('Aún no hay log de catálogo','warn'); return; }
+  const fb = log.firebaseSync || {};
+  const fbStatus = fb.ok ? 'Publicado y verificado' : (fb.message ? 'No confirmado' : 'Sin diagnóstico');
   const rows=(log.rows||[]).slice(0,80).map(r=>`<tr><td>${r.tipo}</td><td>${r.fila||''}</td><td>${r.codigo||''}</td><td>${r.nombre||''}</td><td>${r.unidad||''}</td><td>${r.stock ?? ''}</td><td>${r.detalle||''}</td></tr>`).join('');
   openModal(`<div class="modal-title">Log catálogo</div>
   <div class="modal-sub">${log.fileName||'Archivo'} · ${formatProductUpdatedAt(log.updatedAt)}</div>
@@ -1452,6 +1458,11 @@ function showProductImportLog() {
     <div><strong>Clasificados:</strong> ${log.classified||0}</div>
     <div><strong>Sin clasificación:</strong> ${log.unclassified||0}</div>
     <div><strong>Nombres distintos:</strong> ${log.nameMismatches||0}</div>
+    <div style="margin-top:6px;"><strong>Firebase:</strong> ${fbStatus}</div>
+    ${fb.userMessage ? `<div><strong>Mensaje:</strong> ${escEmailHtml(fb.userMessage)}</div>` : ''}
+    ${fb.reason ? `<div><strong>Motivo detectado:</strong> ${escEmailHtml(fb.reason)}</div>` : ''}
+    <div><strong>Etapa:</strong> ${fb.stage||'-'} · <strong>Último paquete confirmado:</strong> ${fb.lastChunk !== undefined && fb.lastChunk !== null && Number(fb.lastChunk) >= 0 ? Number(fb.lastChunk)+1 : '-'} / ${fb.totalChunks||'-'} · <strong>Tiempo:</strong> ${fb.elapsedMs ? Math.round(fb.elapsedMs/1000)+'s' : '-'}</div>
+    ${fb.message ? `<div><strong>Detalle técnico:</strong> ${escEmailHtml(fb.message)}</div>` : ''}
   </div>
   <div style="font-size:11px;color:var(--text2);max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:var(--rs);">
     <table style="width:100%;border-collapse:collapse;">
@@ -1464,8 +1475,19 @@ function showProductImportLog() {
 function productImportLogRows() {
   const log = LS.get('product_import_log');
   if (!log) return null;
-  const headers=['tipo','fila','codigo','nombre','nombre_maestro','categoria_nivel_1','categoria_nivel_2','unidad','precio','stock','detalle','archivo','actualizado','masterVersion'];
-  return {log,headers,rows:(log.rows||[]).map(r=>headers.map(h=>r[h] ?? log[h] ?? ''))};
+  const fb = log.firebaseSync || {};
+  const headers=['tipo','fila','codigo','nombre','nombre_maestro','categoria_nivel_1','categoria_nivel_2','unidad','precio','stock','detalle','archivo','actualizado','masterVersion','firebase_ok','firebase_motivo','firebase_mensaje_usuario','firebase_etapa','firebase_mensaje','firebase_paquete','firebase_total_paquetes','firebase_tiempo_seg'];
+  const logExtras = {
+    firebase_ok: fb.ok === undefined ? '' : String(!!fb.ok),
+    firebase_motivo: fb.reason || '',
+    firebase_mensaje_usuario: fb.userMessage || '',
+    firebase_etapa: fb.stage || '',
+    firebase_mensaje: fb.message || '',
+    firebase_paquete: fb.lastChunk !== undefined && fb.lastChunk !== null && Number(fb.lastChunk) >= 0 ? Number(fb.lastChunk)+1 : '',
+    firebase_total_paquetes: fb.totalChunks || '',
+    firebase_tiempo_seg: fb.elapsedMs ? Math.round(fb.elapsedMs/1000) : ''
+  };
+  return {log,headers,rows:(log.rows||[]).map(r=>headers.map(h=>r[h] ?? log[h] ?? logExtras[h] ?? ''))};
 }
 function downloadProductImportLog() {
   const data = productImportLogRows();
@@ -1820,15 +1842,60 @@ function goTab(id) {
 let searchTimer;
 function onSearch(q) { clearTimeout(searchTimer); searchTimer=setTimeout(()=>renderSearch(q.trim()),180); }
 
+function searchTextNorm(v) {
+  return String(v||'')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ');
+}
+
+function productSearchScore(p, rawQ) {
+  const q = String(rawQ||'').trim();
+  const qText = searchTextNorm(q);
+  if (!qText) return Infinity;
+
+  const code = String(p?.cod||'').trim();
+  const codeText = searchTextNorm(code);
+  const nameText = searchTextNorm(p?.nom||'');
+  const groupsText = searchTextNorm(productCatalogGroups(p).join(' '));
+  const words = qText.split(' ').filter(Boolean);
+  const numericQuery = /^[0-9]+$/.test(q);
+
+  if (code === q) return 0;
+  if (codeText === qText) return 1;
+
+  if (numericQuery) {
+    if (code.startsWith(q)) return 10;
+    if (code.includes(q)) return 20;
+    if (nameText.includes(qText)) return 70;
+    if (groupsText.includes(qText)) return 90;
+    return Infinity;
+  }
+
+  if (codeText.startsWith(qText)) return 15;
+  if (codeText.includes(qText)) return 25;
+  if (nameText === qText) return 30;
+  if (nameText.startsWith(qText)) return 35;
+  if (nameText.includes(qText)) return 40;
+  if (words.length && words.every(w => nameText.includes(w))) return 50;
+  if (words.length && words.some(w => nameText.includes(w))) return 70;
+  if (groupsText.includes(qText)) return 80;
+  if (words.length && words.every(w => groupsText.includes(w))) return 85;
+  return Infinity;
+}
+
 function renderSearch(q) {
   const list=document.getElementById('prod-list'), cnt=document.getElementById('result-count');
   updatePriceModeButtons();
   if (!q) { list.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><p>Busca un producto</p><small>Por nombre, código o categoría</small></div>`; cnt.textContent=''; return; }
-  const ql=q.toLowerCase();
-  const res=prods.filter(p=>{
-    const groupsText = productCatalogGroups(p).join(' ').toLowerCase();
-    return String(p.cod||'').includes(q) || p.nom.toLowerCase().includes(ql) || groupsText.includes(ql);
-  }).slice(0,60);
+  const res=prods
+    .map((p,idx)=>({p,idx,score:productSearchScore(p,q)}))
+    .filter(x=>Number.isFinite(x.score))
+    .sort((a,b)=>a.score-b.score || a.idx-b.idx)
+    .slice(0,60)
+    .map(x=>x.p);
   cnt.textContent=res.length?`${res.length} resultado${res.length!==1?'s':''}` :'';
   list.innerHTML=res.length?res.map(p=>prodCardHTML(p)).join(''):`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><p>Sin resultados</p><small>Prueba con otro término</small></div>`;
 }
@@ -2235,6 +2302,67 @@ function isFreightProduct(p={}) {
 function freightProducts() {
   return prods.filter(isFreightProduct);
 }
+const PICKUP_OBS_PREFIX = 'Retiro en Local.';
+function pickupObsPrefixWithSpace() { return PICKUP_OBS_PREFIX + ' '; }
+function hasPickupFreightSelected(obs=currentCartObs()) {
+  return String(obs||'').trimStart().startsWith(PICKUP_OBS_PREFIX);
+}
+function stripPickupObservation(obs='') {
+  const text = String(obs||'').trimStart();
+  if (!text.startsWith(PICKUP_OBS_PREFIX)) return String(obs||'');
+  return text.slice(PICKUP_OBS_PREFIX.length).replace(/^[\s;:,.|-]+/,'').trimStart();
+}
+function applyPickupObservation(obs='') {
+  const rest = stripPickupObservation(obs);
+  return rest ? `${PICKUP_OBS_PREFIX} ${rest}` : PICKUP_OBS_PREFIX;
+}
+function setPickupObservationLock(active) {
+  const el = document.getElementById('cart-obs');
+  if (el) el.dataset.pickupLock = active ? '1' : '';
+}
+function pickupObservationLocked(el=document.getElementById('cart-obs')) {
+  return el?.dataset?.pickupLock === '1' || hasPickupFreightSelected(el?.value || '');
+}
+function protectPickupObservation(el=document.getElementById('cart-obs')) {
+  if (!el || !pickupObservationLocked(el)) return;
+  const editableStart = pickupObsPrefixWithSpace().length;
+  const current = String(el.value||'');
+  if (!current.startsWith(PICKUP_OBS_PREFIX)) {
+    el.value = applyPickupObservation(current);
+  } else if (current === PICKUP_OBS_PREFIX) {
+    el.value = pickupObsPrefixWithSpace();
+  }
+  el.dataset.pickupLock = '1';
+  if ((el.selectionStart||0) < editableStart) {
+    el.setSelectionRange(editableStart, editableStart);
+  }
+}
+function guardPickupObservationKey(ev, el=document.getElementById('cart-obs')) {
+  if (!el || !pickupObservationLocked(el)) return;
+  const editableStart = pickupObsPrefixWithSpace().length;
+  const start = el.selectionStart ?? 0;
+  const end = el.selectionEnd ?? start;
+  const key = ev.key || '';
+  const editingPrefix = start < editableStart || (end > start && start < editableStart);
+  if ((key === 'Backspace' && start <= editableStart) || (key === 'Delete' && start < editableStart) || editingPrefix) {
+    if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Tab','Shift','Control','Alt','Meta'].includes(key)) {
+      ev.preventDefault();
+      el.setSelectionRange(editableStart, editableStart);
+    }
+  }
+}
+function keepPickupCursorEditable(el=document.getElementById('cart-obs')) {
+  if (!el || !pickupObservationLocked(el)) return;
+  setTimeout(()=>protectPickupObservation(el),0);
+}
+function selectPickupFreight() {
+  setPickupObservationLock(true);
+  setCurrentCartObs(applyPickupObservation(currentCartObs()));
+  closeModal();
+  goTab('carrito');
+  keepPickupCursorEditable();
+  toast('Retiro en Local agregado a observaciones','ok');
+}
 function freightSourceForCartItem(item={}) {
   if (isFreightProduct(item)) return item;
   return prods.find(p =>
@@ -2250,6 +2378,10 @@ function addFreightToCart(encodedKey) {
   const key = decodeURIComponent(encodedKey || '');
   const p = prods.find(x=>prodKey(x)===key);
   if(!p) { toast('No se encontro el flete seleccionado','err'); return; }
+  if (hasPickupFreightSelected()) {
+    setCurrentCartObs(stripPickupObservation(currentCartObs()));
+    setPickupObservationLock(false);
+  }
   const existing = cart.find(x=>x.id===prodKey(p));
   if(existing) {
     existing.qty=(parseInt(existing.qty)||1)+1;
@@ -2268,12 +2400,11 @@ function addFreightToCart(encodedKey) {
 }
 function openFreightSelector() {
   const list = freightProducts();
-  if(!list.length) {
-    openModal(`<div class="modal-title">Flete requerido</div>
-    <div class="modal-sub">No hay servicios de flete cargados en el catalogo. Deben estar en Servicios / Transporte.</div>
-    <div class="modal-btns"><button class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`);
-    return;
-  }
+  const pickupRow = `<div class="prod-card" style="margin-top:8px;border-color:#5fa252;background:#f4fbf2;" onclick="selectPickupFreight()">
+      <div class="prod-info"><div class="prod-cod">SIN COSTO</div><div class="prod-nom">Retiro en Local</div><div class="prod-cat">Se agregará a observaciones, sin sumar servicio al carro</div></div>
+      <div class="prod-precio">${priceDuoHTML(0,'')}</div>
+      <button class="prod-add-btn" onclick="event.stopPropagation();selectPickupFreight()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg></button>
+    </div>`;
   const rows = list.map(p => {
     const key = prodKey(p).replace(/'/g,"\\'");
     return `<div class="prod-card" style="margin-top:8px;" onclick="openAddModal('${key}')">
@@ -2283,8 +2414,8 @@ function openFreightSelector() {
     </div>`;
   }).join('');
   openModal(`<div class="modal-title">Agregar flete</div>
-  <div class="modal-sub">Selecciona uno de los servicios disponibles para agregarlo al pedido.</div>
-  <div style="margin-top:10px;">${rows}</div>
+  <div class="modal-sub">Selecciona un servicio de flete o marca retiro en local.</div>
+  <div style="margin-top:10px;">${pickupRow}${rows || '<div class="modal-sub" style="margin-top:10px;">No hay servicios de flete cargados en el catálogo.</div>'}</div>
   <div class="modal-btns" style="margin-top:12px;"><button class="btn-cancel" onclick="closeModal()">Cancelar</button></div>`);
 }
 function confirmMultipleFreights(docType, sendMode) {
@@ -2536,8 +2667,19 @@ function docTotals(items=cart) {
   const iva = grossTotal - net;
   return {gross:netBeforeDiscount, grossBeforeDiscount, grossDiscounts, discounts, net, iva, total:grossTotal};
 }
-function currentCartObs() { return document.getElementById('cart-obs')?.value || ''; }
-function setCurrentCartObs(v='') { const el=document.getElementById('cart-obs'); if(el) el.value=v||''; }
+function currentCartObs() {
+  const el=document.getElementById('cart-obs');
+  if (el && pickupObservationLocked(el)) protectPickupObservation(el);
+  return el?.value || '';
+}
+function setCurrentCartObs(v='') {
+  const el=document.getElementById('cart-obs');
+  if(el) {
+    el.value=v||'';
+    setPickupObservationLock(hasPickupFreightSelected(el.value));
+    protectPickupObservation(el);
+  }
+}
 function paymentConditions() {
   const list = LS.get('payment_conditions');
   const source = Array.isArray(list) && list.length ? list : DEFAULT_PAYMENT_CONDITIONS;
@@ -2774,8 +2916,8 @@ function buildDocumentHtml(order) {
       <td style="${rowCellStyle}">${escEmailHtml(x.nom||'Producto sin nombre')}</td>
       <td style="${rowCellStyle}text-align:center;white-space:nowrap;">${escEmailHtml(x.qty||0)}</td>
       <td style="${rowCellStyle}text-align:center;white-space:nowrap;">${escEmailHtml(unitLabel(x.unidad))}</td>
-      <td style="${rowCellStyle}text-align:right;white-space:nowrap;"><div style="font-weight:bold;color:#111827;">${escEmailHtml(moneyPlain(unitNet))}</div><div style="font-size:10px;color:#64748b;font-weight:normal;">c/IVA ${escEmailHtml(moneyPlain(unitGross))}</div></td>
-      <td style="${rowLastCellStyle}text-align:right;white-space:nowrap;"><div style="font-weight:bold;color:#111827;">${escEmailHtml(moneyPlain(lineNet))}</div><div style="font-size:10px;color:#64748b;font-weight:normal;">c/IVA ${escEmailHtml(moneyPlain(lineGross))}</div></td>
+      <td style="${rowCellStyle}text-align:right;white-space:nowrap;"><div style="font-size:10px;color:#64748b;font-weight:normal;">${escEmailHtml(moneyPlain(unitNet))}</div><div style="font-weight:bold;color:#111827;">c/IVA ${escEmailHtml(moneyPlain(unitGross))}</div></td>
+      <td style="${rowLastCellStyle}text-align:right;white-space:nowrap;"><div style="font-size:10px;color:#64748b;font-weight:normal;">${escEmailHtml(moneyPlain(lineNet))}</div><div style="font-weight:bold;color:#111827;">c/IVA ${escEmailHtml(moneyPlain(lineGross))}</div></td>
     </tr>`;
   }).join('');
   const totalsRows = [
@@ -3094,10 +3236,10 @@ async function buildOrderPdfRecord(order) {
     pdf.setFontSize(7.2); pdf.text(descLines, cols[1].x+2, descLines.length > 1 ? midY-1.5 : midY+1);
     pdf.text(String(item.qty||0), cols[2].x+cols[2].w/2, midY+1, {align:'center'});
     pdf.text(unitLabel(item.unidad) || '', cols[3].x+cols[3].w/2, midY+1, {align:'center'});
-    pdf.setTextColor(...black); pdf.setFont('helvetica','bold'); pdf.setFontSize(7.9); pdf.text(pdfMoney(unitNet), cols[4].x+cols[4].w-2, midY-1.1, {align:'right'});
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(5.8); pdf.setTextColor(...muted); pdf.text(`c/IVA ${pdfMoney(unitGross)}`, cols[4].x+cols[4].w-2, midY+2.4, {align:'right'});
-    pdf.setTextColor(...black); pdf.setFont('helvetica','bold'); pdf.setFontSize(7.9); pdf.text(pdfMoney(lineNet), cols[5].x+cols[5].w-2, midY-1.1, {align:'right'});
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(5.8); pdf.setTextColor(...muted); pdf.text(`c/IVA ${pdfMoney(lineGross)}`, cols[5].x+cols[5].w-2, midY+2.4, {align:'right'});
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(5.8); pdf.setTextColor(...muted); pdf.text(pdfMoney(unitNet), cols[4].x+cols[4].w-2, midY-1.1, {align:'right'});
+    pdf.setTextColor(...black); pdf.setFont('helvetica','bold'); pdf.setFontSize(7.9); pdf.text(`c/IVA ${pdfMoney(unitGross)}`, cols[4].x+cols[4].w-2, midY+2.4, {align:'right'});
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(5.8); pdf.setTextColor(...muted); pdf.text(pdfMoney(lineNet), cols[5].x+cols[5].w-2, midY-1.1, {align:'right'});
+    pdf.setTextColor(...black); pdf.setFont('helvetica','bold'); pdf.setFontSize(7.9); pdf.text(`c/IVA ${pdfMoney(lineGross)}`, cols[5].x+cols[5].w-2, midY+2.4, {align:'right'});
   }
 
   function drawProductTable(pageItems, startY) {
@@ -3547,7 +3689,7 @@ function openSendDocModal() {
 function openSendDocModal() {
   if (!cart.length) { toast('El pedido esta vacio','err'); return; }
   if (!selectedClient) { toast('Selecciona un cliente primero','warn'); openCliModal(); return; }
-  if (!cartFreightItems().length) { toast('Agrega un flete antes de enviar','warn'); openFreightSelector(); return; }
+  if (!cartFreightItems().length && !hasPickupFreightSelected()) { toast('Agrega un flete antes de enviar','warn'); openFreightSelector(); return; }
   openModal(`<div class="modal-title">Enviar documento</div>
   <div class="modal-sub">Primero selecciona el tipo de documento.</div>
   <div class="modal-btns" style="margin-top:14px;">
@@ -3753,7 +3895,7 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
   if (docType === 'nota_venta' && !paymentConditionCode) { toast('Agrega codigo ERP a la condicion de pago en Admin','err'); return; }
   if (docType === 'nota_venta' && !currentUser?.codigo) { toast('Agrega codigo usuario ERP en Admin','err'); return; }
   const freightItems = cartFreightItems();
-  if (!freightItems.length) { toast('Agrega un flete antes de enviar','err'); openFreightSelector(); return; }
+  if (!freightItems.length && !hasPickupFreightSelected()) { toast('Agrega un flete antes de enviar','err'); openFreightSelector(); return; }
   if (freightItems.length > 1 && !confirmedMultipleFreights) { openMultipleFreightConfirm(docType, sendMode, freightItems.length); return; }
   const validityDays = normalizeValidityDays(currentValidityDays || document.getElementById('cart-validity-days')?.value || 7);
   const vendorEmail=normalizeEmail(currentUser?.email||'');
@@ -4477,6 +4619,7 @@ async function syncLogoToFirebase(kind, data, meta) {
 
 async function uploadProds(inp) {
   const f=inp.files[0]; if(!f) return; showLoading('Actualizando catálogo…');
+  let log = null;
   try {
     setLoadingText('Leyendo archivo de catálogo...');
     const {read,utils}=await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
@@ -4497,23 +4640,76 @@ async function uploadProds(inp) {
     LS._setLocal('prods_version',version);
     LS._setLocal('prods_updated_at',updatedAt);
     LS._setLocal('prods_updated_by',currentUser?.name||'Administrador');
-    const log={...parsed.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:f.name};
+    log={...parsed.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:f.name};
     LS._setLocal('product_import_log',log);
     updateProductLogUI();
     let firebasePublished = false;
     try {
       setLoadingText('Publicando catálogo en Firebase...');
-      await syncProductsToFirebase(news, {version, updatedAt, updatedBy: currentUser?.name||'Administrador', fileName: f.name, log});
+      const firebaseSync = await syncProductsToFirebase(news, {version, updatedAt, updatedBy: currentUser?.name||'Administrador', fileName: f.name, log});
+      log.firebaseSync = firebaseSync;
+      LS._setLocal('product_import_log',log);
       firebasePublished = true;
     } catch(e) {
       console.log('Firebase product sync error:', e?.message || e);
+      const diagnosis = firebasePublishDiagnosis(e);
+      log.firebaseSync = {
+        ok:false,
+        stage:e?.stage || 'publicacion',
+        message:e?.message || 'Firebase no confirmó la publicación',
+        userMessage:diagnosis.message,
+        reason:diagnosis.reason,
+        elapsedMs:e?.elapsedMs || null,
+        lastChunk:e?.lastChunk ?? null,
+        totalChunks:e?.totalChunks ?? null,
+        version,
+        at:new Date().toISOString()
+      };
+      LS._setLocal('product_import_log',log);
+      updateProductLogUI();
+      setLoadingText('Firebase no confirmó la publicación.');
     }
     document.getElementById('adm-prod-count').textContent=prods.length+' productos';
     updateProductMetaUI();
     if (!saved) toast('El navegador no pudo guardar el catálogo localmente','warn');
-    toast(firebasePublished ? `Catálogo reemplazado: ${news.length} productos ✓` : `Catálogo local cargado: ${news.length}. Firebase no respondió` , firebasePublished ? 'ok' : 'warn');
+    const failMessage = log?.firebaseSync?.userMessage || 'Catálogo procesado, pero Firebase no confirmó. Revisa log y reintenta.';
+    toast(firebasePublished ? `Catálogo publicado y verificado: ${news.length} productos ✓` : failMessage , firebasePublished ? 'ok' : 'err', firebasePublished ? 'medium' : 'long');
   } catch(e){console.log('Product upload error:', e?.message || e); toast('Error al leer el archivo','err');}
-  finally { hideLoading(); }
+  finally { if (inp) inp.value=''; hideLoading(); }
+}
+
+function firebasePublishDiagnosis(error={}) {
+  const code = String(error?.code || '').toLowerCase();
+  const msg = String(error?.message || '').toLowerCase();
+  const text = `${code} ${msg}`;
+  if (code.includes('resource-exhausted') || text.includes('quota') || text.includes('limite') || text.includes('límite') || text.includes('exceeded')) {
+    return {
+      reason:'quota',
+      message:'Firebase rechazó la publicación por límite de uso/cuota. La carga fue procesada, pero no quedó publicada.'
+    };
+  }
+  if (code.includes('permission-denied') || text.includes('permission') || text.includes('insufficient permissions') || text.includes('permis')) {
+    return {
+      reason:'permissions',
+      message:'Firebase rechazó la publicación por permisos insuficientes. La carga fue procesada, pero no quedó publicada.'
+    };
+  }
+  if (code.includes('unauthenticated') || text.includes('auth') || text.includes('autentic')) {
+    return {
+      reason:'auth',
+      message:'Firebase rechazó la publicación por sesión no autorizada. La carga fue procesada, pero no quedó publicada.'
+    };
+  }
+  if (code.includes('unavailable') || code.includes('deadline-exceeded') || text.includes('sin respuesta') || text.includes('timeout') || text.includes('network')) {
+    return {
+      reason:'timeout',
+      message:'Firebase no confirmó la publicación dentro del tiempo esperado. La carga fue procesada, pero no se puede asegurar que haya quedado publicada.'
+    };
+  }
+  return {
+    reason:'unknown',
+    message:'Firebase no confirmó la publicación. La carga fue procesada, pero no se puede asegurar que haya quedado publicada.'
+  };
 }
 
 function parsePrice(v) {
@@ -4760,10 +4956,13 @@ async function confirmRegroupCatalog() {
 }
 
 async function syncProductsToFirebase(list, meta) {
-  if (!window._fbDB) return;
-  const { setDoc, doc } = window._fbSDK;
+  if (!window._fbDB) throw new Error('Firebase no disponible');
+  const { setDoc, getDoc, doc } = window._fbSDK;
   const db = window._fbDB;
-  const chunkSize = 250;
+  const startedAt = Date.now();
+  let stage = 'inicio';
+  let lastChunk = -1;
+  const chunkSize = 125;
   const chunks = Math.ceil(list.length / chunkSize);
   const log = meta.log || {};
   const metaSummary = {
@@ -4791,21 +4990,66 @@ async function syncProductsToFirebase(list, meta) {
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error(label+' sin respuesta')), ms))
   ]);
-  for (let i=0; i<chunks; i++) {
-    setLoadingText(`Publicando catálogo en Firebase ${i+1}/${chunks}...`);
-    await withTimeout(setDoc(doc(db,'products_chunks_dev',String(i).padStart(4,'0')), {
+  async function writeProductChunk(i) {
+    const ref = doc(db,'products_chunks_dev',String(i).padStart(4,'0'));
+    const payload = {
       index:i,
       version:meta.version,
       value:list.slice(i*chunkSize, (i+1)*chunkSize)
-    }), 12000, `Paquete ${i+1}/${chunks}`);
+    };
+    let lastError = null;
+    for (let attempt=1; attempt<=2; attempt++) {
+      try {
+        await withTimeout(setDoc(ref, payload), 45000, `Paquete ${i+1}/${chunks}`);
+        return {ok:true,attempt,verifiedAfterTimeout:false};
+      } catch(e) {
+        lastError = e;
+        setLoadingText(`Verificando paquete ${i+1}/${chunks}...`);
+        try {
+          const snap = await withTimeout(getDoc(ref), 20000, `Verificación paquete ${i+1}/${chunks}`);
+          const data = snap.exists() ? snap.data() : null;
+          if (data?.version === meta.version && Number(data?.index) === i && Array.isArray(data?.value)) {
+            return {ok:true,attempt,verifiedAfterTimeout:true};
+          }
+        } catch(verifyError) {
+          lastError = verifyError;
+        }
+        if (attempt < 2) setLoadingText(`Reintentando paquete ${i+1}/${chunks}...`);
+      }
+    }
+    throw lastError || new Error(`Paquete ${i+1}/${chunks} sin respuesta`);
   }
-  setLoadingText('Guardando resumen del catálogo...');
-  await withTimeout(setDoc(doc(db,'config_dev','products_meta'), metaSummary), 12000, 'Resumen catálogo');
-  setLoadingText('Guardando log de catálogo...');
   try {
-    await withTimeout(setDoc(doc(db,'config_dev','product_import_log'), {...log, version:meta.version, updatedAt:meta.updatedAt, updatedBy:meta.updatedBy, fileName:meta.fileName||''}), 12000, 'Log catálogo');
+    for (let i=0; i<chunks; i++) {
+      stage = `paquete ${i+1}/${chunks}`;
+      setLoadingText(`Publicando catálogo en Firebase ${i+1}/${chunks}...`);
+      await writeProductChunk(i);
+      lastChunk = i;
+    }
+    stage = 'resumen';
+    setLoadingText('Guardando resumen del catálogo...');
+    await withTimeout(setDoc(doc(db,'config_dev','products_meta'), metaSummary), 45000, 'Resumen catálogo');
+    stage = 'log';
+    setLoadingText('Guardando log de catálogo...');
+    try {
+      await withTimeout(setDoc(doc(db,'config_dev','product_import_log'), {...log, version:meta.version, updatedAt:meta.updatedAt, updatedBy:meta.updatedBy, fileName:meta.fileName||'', firebaseSync:{ok:true,stage:'verificado',elapsedMs:Date.now()-startedAt,lastChunk,totalChunks:chunks,version:meta.version,at:new Date().toISOString()}}), 45000, 'Log catálogo');
+    } catch(e) {
+      console.log('Product import log sync error:', e?.message || e);
+    }
+    stage = 'verificacion';
+    setLoadingText('Verificando publicación en Firebase...');
+    const metaSnap = await withTimeout(getDoc(doc(db,'config_dev','products_meta')), 45000, 'Verificación catálogo');
+    const remoteMeta = metaSnap.exists() ? metaSnap.data() : null;
+    if (!remoteMeta || remoteMeta.version !== meta.version || Number(remoteMeta.count||0) !== list.length || Number(remoteMeta.chunks||0) !== chunks) {
+      throw new Error('Firebase no confirmó la versión publicada');
+    }
+    return {ok:true,stage:'verificado',elapsedMs:Date.now()-startedAt,lastChunk,totalChunks:chunks,version:meta.version,chunkSize,at:new Date().toISOString()};
   } catch(e) {
-    console.log('Product import log sync error:', e?.message || e);
+    e.stage = stage;
+    e.elapsedMs = Date.now()-startedAt;
+    e.lastChunk = lastChunk;
+    e.totalChunks = chunks;
+    throw e;
   }
 }
 
