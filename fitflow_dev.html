@@ -591,6 +591,10 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             <div><div class="admin-item-label">Actualizar catálogo</div><div class="admin-item-sub" id="adm-prod-count">—</div><div class="admin-item-sub" id="adm-prod-updated">Última actualización: —</div></div>
           </div>
           <input type="file" id="prod-upload" class="upload-hidden" accept=".xlsx,.csv" onchange="uploadProds(this)">
+          <div class="admin-item" onclick="openRegroupCatalogModal()">
+            <div class="admin-item-icon" style="background:#eef2ff"><svg viewBox="0 0 24 24" fill="none" stroke="#1a3d8f" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/><path d="M17 10l3 2-3 2"/></svg></div>
+            <div><div class="admin-item-label">Reagrupar catálogo</div><div class="admin-item-sub">Usa la jerarquía maestro actual sin cambiar precios ni stock</div></div>
+          </div>
           <div class="admin-item" onclick="document.getElementById('cli-upload').click()">
             <div class="admin-item-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div><div class="admin-item-label">Actualizar clientes</div><div class="admin-item-sub" id="adm-cli-count">—</div><div class="admin-item-sub" id="adm-cli-updated">Última actualización: —</div></div>
@@ -1821,7 +1825,10 @@ function renderSearch(q) {
   updatePriceModeButtons();
   if (!q) { list.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><p>Busca un producto</p><small>Por nombre, código o categoría</small></div>`; cnt.textContent=''; return; }
   const ql=q.toLowerCase();
-  const res=prods.filter(p=>String(p.cod||'').includes(q)||p.nom.toLowerCase().includes(ql)||p.cat1.toLowerCase().includes(ql)||p.cat2.toLowerCase().includes(ql)).slice(0,60);
+  const res=prods.filter(p=>{
+    const groupsText = productCatalogGroups(p).join(' ').toLowerCase();
+    return String(p.cod||'').includes(q) || p.nom.toLowerCase().includes(ql) || groupsText.includes(ql);
+  }).slice(0,60);
   cnt.textContent=res.length?`${res.length} resultado${res.length!==1?'s':''}` :'';
   list.innerHTML=res.length?res.map(p=>prodCardHTML(p)).join(''):`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><p>Sin resultados</p><small>Prueba con otro término</small></div>`;
 }
@@ -1923,9 +1930,7 @@ function refreshPriceViews() {
   const q = document.getElementById('inp-buscar')?.value?.trim() || '';
   if (document.getElementById('pane-buscar')?.classList.contains('act')) renderSearch(q);
   if (document.getElementById('pane-cats')?.classList.contains('act')) {
-    if (catLevel === 2) renderCatProds(selCat1, document.getElementById('cat-breadcrumb')?.textContent || '');
-    else if (catLevel === 1) renderCatL2(selCat1);
-    else renderCatL1();
+    renderCatPath(currentCatPath || []);
   }
   if (document.getElementById('pane-carrito')?.classList.contains('act')) renderCart();
   if (!document.getElementById('modal-overlay')?.classList.contains('hidden') && modalCtx?.key) updateModalPrice(modalCtx.key);
@@ -1957,7 +1962,7 @@ function hydrateItemsUnits(items=[]) {
 }
 
 // ══ CATEGORÍAS ══════════════════════════════════
-let catLevel=0,selCat1='';
+let catLevel=0,selCat1='',currentCatPath=[];
 function catalogOrderParts(label='') {
   const match = String(label || '').trim().match(/^(\d+(?:\.\d+)*)\s*\.?\s*-/);
   return match ? match[1].split('.').map(n => parseInt(n, 10)) : null;
@@ -1977,51 +1982,66 @@ function compareCatalogLabels(a='', b='') {
   }
   return String(a || '').localeCompare(String(b || ''), 'es', {numeric:true, sensitivity:'base'});
 }
-function catTree() {
-  return prods.reduce((tree,p)=>{
-    const c1=p.cat1||'Sin categoría';
-    const c2=p.cat2||'Sin subcategoría';
-    if(!tree[c1]) tree[c1]=[];
-    if(!tree[c1].includes(c2)) tree[c1].push(c2);
-    return tree;
-  },{});
+function productCatalogGroups(p={}) {
+  const groups = Array.isArray(p.groups) ? p.groups.map(x=>String(x||'').trim()).filter(Boolean) : [];
+  if (groups.length) return groups;
+  return [p.cat1 || 'Sin categoría', p.cat2 || 'Sin subcategoría'].map(x=>String(x||'').trim()).filter(Boolean);
+}
+function productMatchesCatPath(p={}, path=[]) {
+  const groups = productCatalogGroups(p);
+  return path.every((value,idx)=>groups[idx] === value);
+}
+function productsForCatPath(path=[]) {
+  return prods.filter(p=>productMatchesCatPath(p,path));
+}
+function catChildren(path=[]) {
+  const idx = path.length;
+  const children = new Map();
+  productsForCatPath(path).forEach(p=>{
+    const groups = productCatalogGroups(p);
+    const child = groups[idx];
+    if (!child) return;
+    children.set(child, (children.get(child)||0)+1);
+  });
+  return [...children.entries()].sort(([a],[b])=>compareCatalogLabels(a,b));
+}
+function renderCatPath(path=[]) {
+  currentCatPath=[...path];
+  catLevel=currentCatPath.length;
+  selCat1=currentCatPath[0] || '';
+  updatePriceModeButtons();
+  document.getElementById('cat-back').classList.toggle('hidden', currentCatPath.length===0);
+  document.getElementById('cat-breadcrumb').textContent=currentCatPath.length ? currentCatPath[currentCatPath.length-1] : 'Todas las categorías';
+  const children = catChildren(currentCatPath);
+  if (children.length) {
+    document.getElementById('cat-list').innerHTML=children.map(([label,n])=>{
+      const nextPath = JSON.stringify([...currentCatPath,label]).replace(/'/g,'&#39;');
+      return `<div class="cat-item" onclick='renderCatPath(${nextPath})'>
+      <div class="cat-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg></div>
+      <span class="cat-item-label">${label}</span><span class="cat-item-count">${n}</span>
+      <span class="cat-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></span>
+    </div>`;
+    }).join('');
+    return;
+  }
+  const leafProducts = productsForCatPath(currentCatPath);
+  document.getElementById('cat-list').innerHTML=leafProducts.length
+    ? leafProducts.map(p=>prodCardHTML(p)).join('')
+    : `<div class="empty-state"><p>Sin productos</p><small>No hay productos en esta agrupación</small></div>`;
 }
 function renderCatL1() {
-  catLevel=0;selCat1='';
-  updatePriceModeButtons();
-  document.getElementById('cat-back').classList.add('hidden');
-  document.getElementById('cat-breadcrumb').textContent='Todas las categorías';
-  document.getElementById('cat-list').innerHTML=Object.entries(catTree()).sort(([a],[b])=>compareCatalogLabels(a,b)).map(([c1])=>{
-    const n=prods.filter(p=>p.cat1===c1).length;
-    return `<div class="cat-item" onclick="renderCatL2('${c1.replace(/'/g,"\\'")}')">
-      <div class="cat-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg></div>
-      <span class="cat-item-label">${c1}</span><span class="cat-item-count">${n}</span>
-      <span class="cat-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></span>
-    </div>`;
-  }).join('');
+  renderCatPath([]);
 }
 function renderCatL2(c1) {
-  catLevel=1;selCat1=c1;
-  updatePriceModeButtons();
-  document.getElementById('cat-back').classList.remove('hidden');
-  document.getElementById('cat-breadcrumb').textContent=c1;
-  document.getElementById('cat-list').innerHTML=(catTree()[c1]||[]).slice().sort(compareCatalogLabels).map(c2=>{
-    const n=prods.filter(p=>p.cat1===c1&&p.cat2===c2).length;
-    return `<div class="cat-item" onclick="renderCatProds('${c1.replace(/'/g,"\\'")}','${c2.replace(/'/g,"\\'")}')">
-      <div class="cat-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg></div>
-      <span class="cat-item-label">${c2}</span><span class="cat-item-count">${n}</span>
-      <span class="cat-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg></span>
-    </div>`;
-  }).join('');
+  renderCatPath([c1]);
 }
 function renderCatProds(c1,c2) {
-  catLevel=2;
-  selCat1=c1;
-  updatePriceModeButtons();
-  document.getElementById('cat-breadcrumb').textContent=c2;
-  document.getElementById('cat-list').innerHTML=prods.filter(p=>p.cat1===c1&&p.cat2===c2).map(p=>prodCardHTML(p)).join('');
+  renderCatPath([c1,c2]);
 }
-function catBack() { if(catLevel===2) renderCatL2(selCat1); else renderCatL1(); }
+function catBack() {
+  if (currentCatPath.length) renderCatPath(currentCatPath.slice(0,-1));
+  else renderCatL1();
+}
 
 // ══ MODAL AGREGAR ════════════════════════════════
 function openAddModal(key) {
@@ -4609,6 +4629,134 @@ function parseProductRows(rows, catalogMaster={}) {
   });
   log.loaded = products.length;
   return {products,log};
+}
+
+function regroupProductsWithCatalogMaster(list=[], catalogMaster={}) {
+  const masterByCode = catalogMaster.byCode || new Map();
+  const masterAvailable = !!catalogMaster.available;
+  const products = [];
+  const log = {
+    totalRows:list.length,
+    loaded:0,
+    withoutCode:0,
+    repeatedCodes:0,
+    repeatedRows:0,
+    invalidRows:0,
+    masterAvailable,
+    masterVersion:catalogMaster.meta?.version || '',
+    masterError:catalogMaster.error || '',
+    classified:0,
+    unclassified:0,
+    nameMismatches:0,
+    regrouped:true,
+    rows:[]
+  };
+  const byCode = {};
+  list.forEach((p,idx) => {
+    const rawCod = catalogCode(p?.cod);
+    const nom = String(p?.nom || '').trim();
+    const unidad = unitLabel(p?.unidad);
+    const precio = parsePrice(p?.precio);
+    const stock = parseStock(p?.stock);
+    const master = rawCod ? masterByCode.get(rawCod) : null;
+    const masterGroups = Array.isArray(master?.groups) ? master.groups.map(x=>String(x||'').trim()).filter(Boolean) : [];
+    const groups = master
+      ? (masterGroups.length ? masterGroups : [master.cat1, master.cat2].map(x=>String(x||'').trim()).filter(Boolean))
+      : (masterAvailable ? ['Sin clasificación'] : (Array.isArray(p?.groups) && p.groups.length ? p.groups : [p?.cat1, p?.cat2].filter(Boolean)));
+    const safeGroups = groups.length ? groups : ['Sin clasificación'];
+    const cat1 = master ? (master.cat1 || safeGroups[0] || 'Sin clasificación') : (masterAvailable ? 'Sin clasificación' : (p?.cat1 || 'Sin clasificación'));
+    const cat2 = master ? (master.cat2 || safeGroups[1] || '') : (masterAvailable ? '' : (p?.cat2 || ''));
+    if (!nom) {
+      log.invalidRows++;
+      log.rows.push({tipo:'Fila omitida',fila:idx+1,codigo:rawCod,nombre:nom,categoria_nivel_1:cat1,categoria_nivel_2:cat2,unidad,precio,stock,detalle:'No se reagrupó porque no tiene nombre de producto'});
+      return;
+    }
+    if (rawCod) {
+      if (!byCode[rawCod]) byCode[rawCod]=[];
+      byCode[rawCod].push({fila:idx+1,codigo:rawCod,nombre:nom,categoria_nivel_1:cat1,categoria_nivel_2:cat2,unidad,precio,stock});
+      if (master) {
+        log.classified++;
+        if (normalizeProductNameForCompare(master.nom) && normalizeProductNameForCompare(master.nom) !== normalizeProductNameForCompare(nom)) {
+          log.nameMismatches++;
+          log.rows.push({tipo:'Nombre distinto',fila:idx+1,codigo:rawCod,nombre:nom,nombre_maestro:master.nom||'',categoria_nivel_1:cat1,categoria_nivel_2:cat2,unidad,precio,stock,detalle:'El nombre del catálogo cargado se conserva; maestro solo usado para reagrupar'});
+        }
+      } else {
+        log.unclassified++;
+        log.rows.push({tipo:masterAvailable?'No encontrado en maestro':'Sin maestro Firebase',fila:idx+1,codigo:rawCod,nombre:nom,categoria_nivel_1:cat1,categoria_nivel_2:cat2,unidad,precio,stock,detalle:masterAvailable?'Código no encontrado en catalogo maestro; queda sin clasificacion':(catalogMaster.error||'No se pudo usar catalogo maestro')});
+      }
+    } else {
+      log.withoutCode++;
+      log.unclassified++;
+      log.rows.push({tipo:'Sin código',fila:idx+1,codigo:'',nombre:nom,categoria_nivel_1:cat1,categoria_nivel_2:cat2,unidad,precio,stock,detalle:'Se conserva con ID interno y queda sin clasificación'});
+    }
+    products.push({...p, cod:rawCod, nom, unidad, precio, stock, cat1, cat2, groups:safeGroups});
+  });
+  Object.entries(byCode).forEach(([codigo,items])=>{
+    if (items.length > 1) {
+      log.repeatedCodes++;
+      log.repeatedRows += items.length;
+      items.forEach((item,i)=>log.rows.push({...item,tipo:'Código repetido',detalle:`Código aparece ${items.length} veces. Ocurrencia ${i+1} de ${items.length}; se conservó igual`}));
+    }
+  });
+  log.loaded = products.length;
+  return {products,log};
+}
+
+function openRegroupCatalogModal() {
+  if (!currentUser?.isAdmin) { toast('Solo Admin puede reagrupar catálogo','err'); return; }
+  if (!prods.length) { toast('No hay catálogo cargado para reagrupar','err'); return; }
+  openModal(`<div class="modal-title">Reagrupar catálogo</div>
+    <div class="modal-sub">Se conservarán nombres, precios, unidades y stock. Solo se recalcularán las agrupaciones usando la jerarquía maestro actual de Firebase.</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.45;margin-top:8px;">
+      Productos actuales: <strong style="color:var(--text);">${prods.length}</strong><br>
+      Esta acción publicará una nueva versión del catálogo DEV.
+    </div>
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="btn-confirm-green" onclick="confirmRegroupCatalog()">Reagrupar</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    </div>`);
+}
+
+async function confirmRegroupCatalog() {
+  closeModal();
+  if (!prods.length) { toast('No hay catálogo cargado para reagrupar','err'); return; }
+  showLoading('Reagrupando catálogo...');
+  try {
+    setLoadingText('Descargando jerarquía maestro...');
+    const catalogMaster = await loadCatalogMasterFromFirebase();
+    if (!catalogMaster.available) {
+      toast(`No se pudo usar la jerarquía maestro: ${catalogMaster.error || 'no disponible'}`,'err');
+      return;
+    }
+    setLoadingText(`Reagrupando ${prods.length} productos...`);
+    const parsed = regroupProductsWithCatalogMaster(prods, catalogMaster);
+    if (!parsed.products.length) { toast('No se encontraron productos para reagrupar','err'); return; }
+    const updatedAt = new Date().toISOString();
+    const version = 'catalogo-reagrupado-'+updatedAt;
+    const previousLog = LS.get('product_import_log') || {};
+    const log = {...parsed.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:previousLog.fileName || 'Reagrupación sin recarga de archivo'};
+    prods = parsed.products;
+    setLoadingText('Guardando catálogo reagrupado localmente...');
+    const saved = await setListCache('prods', prods, version);
+    LS._setLocal('prods_source','admin_upload');
+    LS._setLocal('prods_version',version);
+    LS._setLocal('prods_updated_at',updatedAt);
+    LS._setLocal('prods_updated_by',currentUser?.name||'Administrador');
+    LS._setLocal('product_import_log',log);
+    updateProductLogUI();
+    setLoadingText('Publicando catálogo reagrupado en Firebase...');
+    await syncProductsToFirebase(prods, {version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:log.fileName, log});
+    document.getElementById('adm-prod-count').textContent=prods.length+' productos';
+    updateProductMetaUI();
+    refreshAfterSync();
+    if (!saved) toast('El navegador no pudo guardar el catálogo localmente','warn');
+    toast(`Catálogo reagrupado: ${log.classified} clasificados · ${log.unclassified} sin clasificación`,'ok','long');
+  } catch(e) {
+    console.log('Catalog regroup error:', e?.message || e);
+    toast('No se pudo reagrupar el catálogo','err');
+  } finally {
+    hideLoading();
+  }
 }
 
 async function syncProductsToFirebase(list, meta) {
