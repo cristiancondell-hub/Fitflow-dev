@@ -838,7 +838,7 @@ function syncToFirebase(k, v) {
     else if (k === 'company_config') setDoc(doc(db,'config_dev','company_config'), {value: v}).catch(()=>{});
     else if (k === 'product_visibility_rules') setDoc(doc(db,'config_dev','product_visibility_rules'), {value: v, updatedAt:new Date().toISOString(), updatedBy:currentUser?.name||'Administrador'}).catch(()=>{});
     else if (k === 'logo')   setDoc(doc(db,'config_dev','logo'),    {value: v, version:LS.get('logo_version')||'local', updatedAt:LS.get('logo_updated_at')||null}).catch(()=>{});
-    else if (k === 'orders') syncOrdersToFirebase(v);
+    else if (k === 'orders') return; // Los pedidos se sincronizan de a uno para evitar reescribir todo el historial.
     else if (k === 'deleted_orders') syncDeletedOrdersToFirebase(v);
     else if (k === 'clients_meta') setDoc(doc(db,'config_dev','clients_meta'), v).catch(()=>{});
   } catch(e) {}
@@ -1258,17 +1258,62 @@ function mergeOrders(local=[], remote=[]) {
   return [...map.values()].sort((a,b)=>Number(b.updatedAtMs||b.id||0)-Number(a.updatedAtMs||a.id||0));
 }
 
-function syncOrderToFirebase(order) {
-  if (!window._fbDB || !order) return;
-  try {
-    const { setDoc, doc } = window._fbSDK;
-    setDoc(doc(window._fbDB,'orders_dev',orderKey(order)), order, {merge:true}).catch(()=>{});
-  } catch(e) {}
+function pendingOrderSyncs() {
+  const list = LS.get('pending_order_syncs');
+  return Array.isArray(list) ? list.filter(x => x?.key) : [];
+}
+function savePendingOrderSync(order, reason='pendiente') {
+  const key = orderKey(order);
+  if (!key) return;
+  const current = pendingOrderSyncs();
+  const next = current.filter(x => x.key !== key);
+  next.unshift({key, reason, queuedAt:new Date().toISOString(), queuedAtMs:Date.now()});
+  LS._setLocal('pending_order_syncs', next.slice(0, 200));
+}
+function clearPendingOrderSyncKey(key) {
+  key = tombstoneKey(key);
+  if (!key) return;
+  const current = pendingOrderSyncs();
+  const next = current.filter(x => x.key !== key);
+  if (next.length !== current.length) LS._setLocal('pending_order_syncs', next);
 }
 
-function syncOrdersToFirebase(orders=[]) {
+const fitflowWriteDiag = window.fitflowWriteDiag = window.fitflowWriteDiag || {
+  ordersDev: 0,
+  byReason: {},
+  rows: [],
+  summary: {}
+};
+function logOrderFirebaseWrite(order, reason='sin_motivo') {
+  const key = orderKey(order);
+  fitflowWriteDiag.ordersDev += 1;
+  fitflowWriteDiag.byReason[reason] = (fitflowWriteDiag.byReason[reason] || 0) + 1;
+  fitflowWriteDiag.summary = {totalOrdersDev:fitflowWriteDiag.ordersDev, byReason:{...fitflowWriteDiag.byReason}};
+  const row = {n:fitflowWriteDiag.ordersDev, reason, order:key, at:new Date().toISOString()};
+  fitflowWriteDiag.rows.push(row);
+  if (fitflowWriteDiag.rows.length > 300) fitflowWriteDiag.rows.shift();
+  console.info(`[FitFlow Firebase Write] #${row.n} orders_dev/${key} | motivo: ${reason}`, row);
+}
+function syncOrderToFirebase(order, reason='syncOrderToFirebase') {
+  if (!order) return;
+  if (!window._fbDB) {
+    savePendingOrderSync(order, reason);
+    return;
+  }
+  try {
+    const { setDoc, doc } = window._fbSDK;
+    logOrderFirebaseWrite(order, reason);
+    setDoc(doc(window._fbDB,'orders_dev',orderKey(order)), order, {merge:true})
+      .then(()=>clearPendingOrderSyncKey(orderKey(order)))
+      .catch(()=>savePendingOrderSync(order, reason));
+  } catch(e) {
+    savePendingOrderSync(order, reason);
+  }
+}
+
+function syncOrdersToFirebase(orders=[], reason='syncOrdersToFirebase') {
   if (!window._fbDB || !Array.isArray(orders)) return;
-  visibleOrders(orders).forEach(syncOrderToFirebase);
+  visibleOrders(orders).forEach(order => syncOrderToFirebase(order, reason));
 }
 
 function syncDeletedOrderToFirebase(tombstone) {
@@ -1284,8 +1329,20 @@ function syncDeletedOrdersToFirebase(tombstones=[]) {
   tombstones.forEach(syncDeletedOrderToFirebase);
 }
 
+function syncPendingOrdersToFirebase() {
+  if (!window._fbDB) return;
+  const pending = pendingOrderSyncs();
+  if (!pending.length) return;
+  const ordersByKey = new Map(visibleOrders(LS.get('orders')||[]).map(o => [orderKey(o), o]));
+  pending.forEach(item => {
+    const order = ordersByKey.get(item.key);
+    if (order) syncOrderToFirebase(order, `retryOrderSync_pending:${item.reason||'pendiente'}`);
+    else clearPendingOrderSyncKey(item.key);
+  });
+}
+
 function retryOrderSync() {
-  syncOrdersToFirebase(LS.get('orders')||[]);
+  syncPendingOrdersToFirebase();
   syncDeletedOrdersToFirebase(LS.get('deleted_orders')||[]);
 }
 
@@ -3831,7 +3888,7 @@ async function openOrderPdf(id) {
       const idx = orders.findIndex(o=>o.id===id);
       if (idx !== -1) orders[idx] = order;
       LS.set('orders', orders);
-      syncOrderToFirebase(order);
+      syncOrderToFirebase(order, 'openOrderPdf_regenerado');
       record = await getOrderPdfRecord(order);
     }
     hideLoading();
@@ -4185,7 +4242,7 @@ function persistCurrentPedido() {
   activeOrderId = savedOrder.id;
   clearDeletedOrderKey(orderKey(savedOrder));
   const savedLocal = LS.set('orders',orders);
-  syncOrderToFirebase(savedOrder);
+  syncOrderToFirebase(savedOrder, 'guardar_pedido');
   updateHistDot();
   const localHasSavedOrder = (LS.get('orders')||[]).some(o => o && orderKey(o) === orderKey(savedOrder));
   return savedLocal && localHasSavedOrder ? savedOrder : null;
@@ -4395,7 +4452,7 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     orders.unshift(orderData);
   }
   LS.set('orders',orders);
-  syncOrderToFirebase(orderData);
+  syncOrderToFirebase(orderData, 'enviar_documento_pre_envio');
   showLoading('Enviando correo...');
   const recipients = {adminEmail, vendorEmail, clientEmail:sendMode === 'both' ? clientEmail : '', clientCcEmail:sendMode === 'both' ? clientCcEmail : '', clientPhone:sendMode === 'both' ? clientPhone : ''};
   try {
@@ -4409,7 +4466,7 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     const idx=saved.findIndex(o=>o.id===orderData.id);
     if(idx!==-1) saved[idx]=orderData;
     LS.set('orders',saved);
-    syncOrderToFirebase(orderData);
+    syncOrderToFirebase(orderData, 'enviar_documento_ok');
     if (recipients.clientPhone) {
       setLoadingText('Preparando WhatsApp...');
       await openWhatsAppDocument(orderData, recipients.clientPhone);
@@ -4434,7 +4491,7 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     const idx=saved.findIndex(o=>o.id===orderData.id);
     if(idx!==-1) saved[idx]=orderData;
     LS.set('orders',saved);
-    syncOrderToFirebase(orderData);
+    syncOrderToFirebase(orderData, 'enviar_documento_error');
     updateHistDot();
     toast(`No se pudo enviar: ${orderData.emailError}. Quedó en historial con error.`,'err');
   } finally {
@@ -4692,7 +4749,7 @@ async function resendOrder(id) {
     const idx=orders.findIndex(x=>x.id===id);
     if(idx!==-1) orders[idx]=o;
     LS.set('orders',orders);
-    syncOrderToFirebase(o);
+    syncOrderToFirebase(o, 'reenviar_documento_ok');
     renderHistorial();
     const resendText = `${cfg.label} ${o.documentNumber}: ${emailResultMessage(result, recipients)}`;
     toast(resendText,'ok');
@@ -4707,7 +4764,7 @@ async function resendOrder(id) {
     const idx=orders.findIndex(x=>x.id===id);
     if(idx!==-1) orders[idx]=o;
     LS.set('orders',orders);
-    syncOrderToFirebase(o);
+    syncOrderToFirebase(o, 'reenviar_documento_error');
     toast(`No se pudo reenviar: ${o.emailError}`,'err');
   } finally {
     hideLoading();
@@ -4757,6 +4814,7 @@ function confirmDeleteHistoryOrder() {
   }
   const key = orderKey(order);
   saveDeletedOrderTombstone(order);
+  clearPendingOrderSyncKey(key);
   const nextOrders = orders.filter(o => o && orderKey(o) !== key);
   LS.set('orders', visibleOrders(nextOrders));
   if (activeOrderId === order.id) clearCurrentPedido();
