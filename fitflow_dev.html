@@ -1491,12 +1491,9 @@ async function loadFromFirebase(opts={}) {
           hideLoading();
         }
         if (remoteProds?.length) {
-          if (remoteProds.length !== Number(meta.count||0)) {
-            const reason = `descarga Firebase ${remoteProds.length} distinta de resumen ${meta.count}`;
-            console.warn('Catálogo no guardado:', reason);
-            LS._setLocal('prods_cache_reason', {reason, checkedAt:new Date().toISOString(), localMethod:'firebase_chunks', localCount:remoteProds.length, remoteCount:meta.count||0, remoteVersion:meta.version||''});
-            toast('Catálogo no coincide con resumen Firebase','err','long');
-            return;
+          const countMismatch = remoteProds.length !== Number(meta.count||0);
+          if (countMismatch) {
+            console.warn('Catálogo con resumen inconsistente: usando paquetes disponibles', `Firebase chunks ${remoteProds.length}`, `resumen ${meta.count}`);
           }
           prods = remoteProds;
           LS_MEMORY.prods = cloneStorageValue(prods);
@@ -1505,10 +1502,10 @@ async function loadFromFirebase(opts={}) {
           const saved = await setListCache('prods', prods, meta.version||'firebase');
           const savedInfo = await getListCacheInfo('prods');
           const saveReason = saved
-            ? `cache guardado ${savedInfo.method || 'desconocido'} (${savedInfo.count || 0})`
-            : `cache no persistente; queda en sesión (${prods.length})`;
+            ? `${countMismatch ? 'resumen Firebase inconsistente; ' : ''}cache guardado ${savedInfo.method || 'desconocido'} (${savedInfo.count || 0})`
+            : `${countMismatch ? 'resumen Firebase inconsistente; ' : ''}cache no persistente; queda en sesión (${prods.length})`;
           console.log('Resultado cache catálogo:', saveReason);
-          LS._setLocal('prods_cache_reason', {reason:saveReason, checkedAt:new Date().toISOString(), localMethod:savedInfo.method||'session_memory', localCount:savedInfo.count||prods.length, remoteCount:meta.count||0, remoteVersion:meta.version||''});
+          LS._setLocal('prods_cache_reason', {reason:saveReason, checkedAt:new Date().toISOString(), localMethod:savedInfo.method||'session_memory', localCount:savedInfo.count||prods.length, remoteCount:meta.count||0, remoteVersion:meta.version||'', mismatch:countMismatch});
           LS._setLocal('prods_source', 'firebase');
           LS._setLocal('prods_version', meta.version||'firebase');
           LS._setLocal('prods_updated_at', meta.updatedAt||null);
@@ -5562,7 +5559,7 @@ async function syncProductsToFirebase(list, meta) {
   const startedAt = Date.now();
   let stage = 'inicio';
   let lastChunk = -1;
-  const chunkSize = 125;
+  const chunkSize = 250;
   const chunks = Math.ceil(list.length / chunkSize);
   const log = meta.log || {};
   const metaSummary = {
