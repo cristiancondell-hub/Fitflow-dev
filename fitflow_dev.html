@@ -22,34 +22,6 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);}
 #app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;}
-@media (min-width:700px){
-  #app{max-width:720px;box-shadow:0 0 0 1px rgba(13,43,110,.06),0 18px 48px rgba(13,43,110,.16);}
-  #hdr{padding-left:14px;padding-right:14px;}
-  .hdr-uname{max-width:150px;}
-  .prod-list{gap:9px;padding-left:4px;padding-right:4px;}
-  .prod-card{padding:12px 16px;}
-  .cat-list{padding-left:18px;padding-right:18px;}
-  .cat-header{padding-left:18px;padding-right:18px;}
-  .cart-cli-bar{margin-left:18px;margin-right:18px;}
-  .cart-price-mode-row{padding-left:18px;padding-right:18px;}
-  .cart-items-wrap{padding-left:18px;padding-right:18px;}
-  .cart-footer{padding-left:18px;padding-right:18px;}
-  .hist-toolbar{padding-left:18px;padding-right:18px;}
-  .hist-list{padding-left:18px;padding-right:18px;}
-  .hist-card-pay{max-width:none;}
-  .modal{max-width:640px;border-radius:22px;padding-left:24px;padding-right:24px;}
-  .login-box{max-width:400px;}
-}
-@media (min-width:1000px){
-  #app{max-width:920px;}
-  #hdr{padding-left:18px;padding-right:18px;}
-  .prod-card,.cat-item,.hist-card,.cart-card{padding-left:18px;padding-right:18px;}
-  .cat-list,.hist-list,.cart-items-wrap{padding-left:24px;padding-right:24px;}
-  .cat-header,.hist-toolbar,.cart-footer,.cart-price-mode-row{padding-left:24px;padding-right:24px;}
-  .cart-cli-bar{margin-left:24px;margin-right:24px;}
-  .cart-payment-grid{grid-template-columns:minmax(0,1fr) 150px;}
-  .modal{max-width:720px;}
-}
 
 /* ── HEADER ── */
 #hdr{background:var(--navy);padding:8px 8px 7px;padding-top:calc(8px + env(safe-area-inset-top));display:flex;align-items:center;gap:6px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.3);}
@@ -624,10 +596,6 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             <div class="admin-item-icon" style="background:#eef2ff"><svg viewBox="0 0 24 24" fill="none" stroke="#1a3d8f" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/><path d="M17 10l3 2-3 2"/></svg></div>
             <div><div class="admin-item-label">Reagrupar catálogo</div><div class="admin-item-sub">Usa la jerarquía maestro actual sin cambiar precios ni stock</div></div>
           </div>
-          <div class="admin-item" onclick="adminProductVisibilityRules()">
-            <div class="admin-item-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2"><path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/><circle cx="8" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
-            <div><div class="admin-item-label">Visibilidad de productos</div><div class="admin-item-sub" id="adm-visibility-val">Reglas sin aplicar a publicación</div></div>
-          </div>
           <div class="admin-item" onclick="document.getElementById('cli-upload').click()">
             <div class="admin-item-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div><div class="admin-item-label">Actualizar clientes</div><div class="admin-item-sub" id="adm-cli-count">—</div><div class="admin-item-sub" id="adm-cli-updated">Última actualización: —</div></div>
@@ -742,24 +710,11 @@ let prods=[], clients=[], cart=[], currentUser=null, selectedClient=null, modalC
 // ID del pedido en proceso que estamos editando (null = pedido nuevo)
 let activeOrderId = null;
 let firebaseSyncStarted = false;
-let lastAuthRecheckAt = 0;
 const DEFAULT_VENDORS = [
   {name:'Administrador',pin:'0000',isAdmin:true,email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0},
   {name:'Vendedor 1',pin:'1111',isAdmin:false,email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0}
 ];
 const DEFAULT_PAYMENT_CONDITIONS = ['Contado','Transferencia','Credito 30 dias'];
-const DEFAULT_PRODUCT_VISIBILITY_RULES = {
-  enabled:false,
-  publishOnlyVisible:true,
-  invalidPrice:{enabled:true,minPrice:1},
-  stockDate:{enabled:false,months:12,invalidDateAction:'review'},
-  services:{excludeFromStockDate:true},
-  duplicates:{autoResolve:true},
-  exceptions:{alwaysShow:'',alwaysHide:''}
-};
-const FITFLOW_SESSION_KEY = 'fitflow_auth_session';
-const FITFLOW_AUTH_RECHECK_MS = 15 * 60 * 1000;
-const FITFLOW_AUTH_OFFLINE_MAX_MS = 24 * 60 * 60 * 1000;
 const LOGO_TYPES = {
   login: {label:'Logo inicio', local:'logo_login', legacyLocal:'logo', doc:'logo_login', meta:'logo_login_meta', legacyDoc:'logo', legacyMeta:'logo_meta'},
   header:{label:'Logo banner', local:'logo_header', doc:'logo_header', meta:'logo_header_meta'},
@@ -834,7 +789,6 @@ function syncToFirebase(k, v) {
     else if (k === 'payment_conditions') setDoc(doc(db,'config_dev','payment_conditions'), {value: v}).catch(()=>{});
     else if (k === 'email')  setDoc(doc(db,'config_dev','email'),   {value: v}).catch(()=>{});
     else if (k === 'company_config') setDoc(doc(db,'config_dev','company_config'), {value: v}).catch(()=>{});
-    else if (k === 'product_visibility_rules') setDoc(doc(db,'config_dev','product_visibility_rules'), {value: v, updatedAt:new Date().toISOString(), updatedBy:currentUser?.name||'Administrador'}).catch(()=>{});
     else if (k === 'logo')   setDoc(doc(db,'config_dev','logo'),    {value: v, version:LS.get('logo_version')||'local', updatedAt:LS.get('logo_updated_at')||null}).catch(()=>{});
     else if (k === 'orders') syncOrdersToFirebase(v);
     else if (k === 'deleted_orders') syncDeletedOrdersToFirebase(v);
@@ -847,7 +801,6 @@ function loadState() {
   if (!LS.get('payment_conditions')) LS.set('payment_conditions',DEFAULT_PAYMENT_CONDITIONS);
   if (!LS.get('email'))  LS.set('email','ventas@centrofitting.cl');
   if (!LS.get('company_config')) LS.set('company_config',DEFAULT_COMPANY_CONFIG);
-  if (!LS.get('product_visibility_rules')) LS._setLocal('product_visibility_rules',DEFAULT_PRODUCT_VISIBILITY_RULES);
   if (!LS.get('orders')) LS.set('orders',[]);
   if (!LS.get('deleted_orders')) LS._setLocal('deleted_orders',[]);
 
@@ -944,43 +897,6 @@ async function setBigCache(key, value) {
   } catch(e) { return false; }
 }
 
-async function getBigChunkCacheInfo(key) {
-  try {
-    const meta = await getBigCache(key+'_chunk_meta');
-    if (!meta?.chunks) return {list:null, version:null, count:0, method:''};
-    const parts = [];
-    for (let i=0; i<meta.chunks; i++) {
-      const part = await getBigCache(`${key}_chunk_${i}`);
-      if (!Array.isArray(part)) return {list:null, version:meta.version||null, count:0, method:'indexeddb_chunks_incompleto'};
-      parts.push(part);
-    }
-    const list = parts.flat();
-    if (list.length !== meta.count) return {list:null, version:meta.version||null, count:list.length, method:'indexeddb_chunks_conteo_distinto'};
-    return {list, version:meta.version||null, count:list.length, method:'indexeddb_chunks'};
-  } catch(e) {
-    return {list:null, version:null, count:0, method:'indexeddb_chunks_error'};
-  }
-}
-
-async function setBigChunkCache(key, list, version) {
-  try {
-    const oldMeta = await getBigCache(key+'_chunk_meta');
-    const chunkSize = 250;
-    const chunks = Math.ceil(list.length / chunkSize);
-    if (oldMeta?.chunks) {
-      for (let i=0; i<oldMeta.chunks; i++) await setBigCache(`${key}_chunk_${i}`, []);
-    }
-    for (let i=0; i<chunks; i++) {
-      const ok = await setBigCache(`${key}_chunk_${i}`, list.slice(i*chunkSize, (i+1)*chunkSize));
-      if (!ok) return false;
-    }
-    const meta = {version, count:list.length, chunks, chunkSize, savedAt:new Date().toISOString()};
-    return await setBigCache(key+'_chunk_meta', meta);
-  } catch(e) {
-    return false;
-  }
-}
-
 function getLocalChunkCache(key) {
   try {
     const meta = LS.get(key+'_cache_meta');
@@ -1013,33 +929,28 @@ function setLocalChunkCache(key, list, version) {
 }
 
 async function getListCache(key) {
-  const bigChunks = await getBigChunkCacheInfo(key);
-  if (Array.isArray(bigChunks.list)) return bigChunks.list;
   const record = await getBigCache(key+'_record');
   if (record && Array.isArray(record.list)) return record.list;
   return await getBigCache(key) || getLocalChunkCache(key) || LS.get(key);
 }
 
 async function getListCacheInfo(key) {
-  const bigChunks = await getBigChunkCacheInfo(key);
-  if (Array.isArray(bigChunks.list)) return bigChunks;
   const record = await getBigCache(key+'_record');
   if (record && Array.isArray(record.list)) {
-    return {list:record.list, version:record.version||null, count:record.count||record.list.length, method:'indexeddb_record'};
+    return {list:record.list, version:record.version||null, count:record.count||record.list.length};
   }
   const chunkMeta = LS.get(key+'_cache_meta');
   const chunkList = getLocalChunkCache(key);
-  if (chunkList) return {list:chunkList, version:chunkMeta?.version||null, count:chunkList.length, method:'local_chunks'};
+  if (chunkList) return {list:chunkList, version:chunkMeta?.version||null, count:chunkList.length};
   const list = await getBigCache(key) || LS.get(key);
-  return {list, version:LS.get(key+'_version'), count:Array.isArray(list)?list.length:0, method:Array.isArray(list)?'legacy':'none'};
+  return {list, version:LS.get(key+'_version'), count:Array.isArray(list)?list.length:0};
 }
 
 async function setListCache(key, list, version) {
   const record = {list, version, count:list.length, savedAt:new Date().toISOString()};
-  const savedBigChunks = await setBigChunkCache(key, list, version);
-  const savedRecord = savedBigChunks ? false : await setBigCache(key+'_record', record);
+  const savedRecord = await setBigCache(key+'_record', record);
   let savedBig = false, savedChunks = false, savedFullLocal = false;
-  if (!savedBigChunks && !savedRecord) {
+  if (!savedRecord) {
     savedBig = await setBigCache(key, list);
     if (!savedBig) savedChunks = setLocalChunkCache(key, list, version);
     if (!savedChunks) {
@@ -1047,21 +958,7 @@ async function setListCache(key, list, version) {
       savedFullLocal = Array.isArray(LS.get(key)) && LS.get(key).length === list.length;
     }
   }
-  const ok = savedBigChunks || savedRecord || savedBig || savedChunks || savedFullLocal;
-  if (ok) LS._setLocal(key+'_cache_status', {version, count:list.length, savedAt:record.savedAt, method:savedBigChunks?'indexeddb_chunks':savedRecord?'indexeddb_record':savedBig?'indexeddb_list':savedChunks?'local_chunks':'local_full'});
-  return ok;
-}
-
-function cacheReadyReason(key, meta, info) {
-  if (!meta?.version) return {ready:false, reason:'metadata sin versión'};
-  if (!meta?.count && meta.count !== 0) return {ready:false, reason:'metadata sin cantidad'};
-  if (!Array.isArray(info?.list)) return {ready:false, reason:'sin datos locales'};
-  if (info.list.length !== meta.count) return {ready:false, reason:`cantidad local ${info.list.length} distinta de Firebase ${meta.count}`};
-  const status = LS.get(key+'_cache_status');
-  const localVersion = LS.get(key+'_version');
-  const cacheVersion = info.version || status?.version || localVersion;
-  if (cacheVersion !== meta.version) return {ready:false, reason:`versión local ${cacheVersion || 'sin versión'} distinta de Firebase ${meta.version}`};
-  return {ready:true, reason:'cache local vigente'};
+  return savedRecord || savedBig || savedChunks || savedFullLocal;
 }
 
 function orderKey(o) {
@@ -1276,12 +1173,11 @@ async function loadFromFirebase(opts={}) {
   try {
     const { getDoc, doc, getDocs, collection } = window._fbSDK;
     const db = window._fbDB;
-    const [vSnap, eSnap, paySnap, companySnap, visibilitySnap, oSnap, cMetaSnap, pMetaSnap] = await Promise.all([
+    const [vSnap, eSnap, paySnap, companySnap, oSnap, cMetaSnap, pMetaSnap] = await Promise.all([
       getDoc(doc(db,'config_dev','vendors')),
       getDoc(doc(db,'config_dev','email')),
       getDoc(doc(db,'config_dev','payment_conditions')),
       getDoc(doc(db,'config_dev','company_config')),
-      getDoc(doc(db,'config_dev','product_visibility_rules')),
       getDoc(doc(db,'config_dev','orders')),
       getDoc(doc(db,'config_dev','clients_meta')),
       getDoc(doc(db,'config_dev','products_meta'))
@@ -1305,10 +1201,6 @@ async function loadFromFirebase(opts={}) {
     if (companySnap.exists()) {
       LS._setLocal('company_config', {...DEFAULT_COMPANY_CONFIG, ...(companySnap.data().value||{})});
       updateCompanyConfigUI();
-    }
-    if (visibilitySnap.exists()) {
-      LS._setLocal('product_visibility_rules', normalizeProductVisibilityRules(visibilitySnap.data().value || {}));
-      updateProductVisibilityRulesUI();
     }
     await loadLogoFromFirebase('login');
     await loadLogoFromFirebase('header');
@@ -1347,14 +1239,13 @@ async function loadFromFirebase(opts={}) {
     // Catálogo oficial cargado por Admin
     if (pMetaSnap.exists() && pMetaSnap.data()?.chunks) {
       const meta = pMetaSnap.data();
+      const localVersion = LS.get('prods_version');
       const localProdsInfo = await getListCacheInfo('prods');
-      const ready = cacheReadyReason('prods', meta, localProdsInfo);
       const localProds = localProdsInfo.list;
-      if (ready.ready) {
-        LS._setLocal('prods_cache_reason', {reason:'cache local vigente', checkedAt:new Date().toISOString(), localMethod:localProdsInfo.method||'', localCount:localProdsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
+      const localReady = Array.isArray(localProds) && localProds.length === meta.count && (localVersion === meta.version || localProdsInfo.version === meta.version);
+      if (localReady) {
         prods = localProds;
         LS._setLocal('prods_source', 'firebase');
-        LS._setLocal('prods_version', meta.version||'firebase');
         LS._setLocal('prods_updated_at', meta.updatedAt||null);
         LS._setLocal('prods_updated_by', meta.updatedBy||'Administrador');
         if (meta.log) LS._setLocal('product_import_log', meta.log);
@@ -1363,8 +1254,6 @@ async function loadFromFirebase(opts={}) {
         updateProductMetaUI();
         updateProductLogUI();
       } else {
-        console.log('Descarga catálogo requerida:', ready.reason);
-        LS._setLocal('prods_cache_reason', {reason:ready.reason, checkedAt:new Date().toISOString(), localMethod:localProdsInfo.method||'', localCount:localProdsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
         showLoading('Preparando descarga de catalogo...');
         let remoteProds = null;
         try {
@@ -1391,22 +1280,19 @@ async function loadFromFirebase(opts={}) {
     // Clientes oficiales cargados por Admin
     if (cMetaSnap.exists() && cMetaSnap.data()?.chunks) {
       const meta = cMetaSnap.data();
+      const localVersion = LS.get('clients_version');
       const localClientsInfo = await getListCacheInfo('clients');
-      const ready = cacheReadyReason('clients', meta, localClientsInfo);
       const localClients = localClientsInfo.list;
-      if (ready.ready) {
-        LS._setLocal('clients_cache_reason', {reason:'cache local vigente', checkedAt:new Date().toISOString(), localMethod:localClientsInfo.method||'', localCount:localClientsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
+      const localReady = Array.isArray(localClients) && localClients.length === meta.count && (localVersion === meta.version || localClientsInfo.version === meta.version);
+      if (localReady) {
         clients = localClients;
         LS._setLocal('clients_source', 'firebase');
-        LS._setLocal('clients_version', meta.version||'firebase');
         LS._setLocal('clients_updated_at', meta.updatedAt||null);
         LS._setLocal('clients_updated_by', meta.updatedBy||'Administrador');
         const countEl = document.getElementById('adm-cli-count');
         if (countEl) countEl.textContent = clients.length+' clientes';
         updateClientMetaUI();
       } else {
-        console.log('Descarga clientes requerida:', ready.reason);
-        LS._setLocal('clients_cache_reason', {reason:ready.reason, checkedAt:new Date().toISOString(), localMethod:localClientsInfo.method||'', localCount:localClientsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
         showLoading('Preparando descarga de clientes...');
         let remoteClients = null;
         try {
@@ -1466,7 +1352,6 @@ function refreshAfterSync() {
   updateClientMetaUI();
   updateLogoMetaUI();
   updatePaymentConditionsUI();
-  updateProductVisibilityRulesUI();
   updateHistDot();
   if (document.getElementById('pane-historial')?.classList.contains('act')) renderHistorial();
   if (document.getElementById('pane-buscar')?.classList.contains('act')) {
@@ -1529,10 +1414,7 @@ function updateProductLogUI() {
   if (el && log) {
     const fb = log.firebaseSync;
     const fbText = fb ? (fb.ok ? 'Firebase verificado' : `Firebase sin confirmar: ${fb.stage || 'publicación'}`) : 'Firebase pendiente';
-    const visText = log.visibilityRules?.enabled ? ` · ${log.hiddenByRules||0} ocultos` : '';
-    const cacheReason = LS.get('prods_cache_reason');
-    const cacheText = cacheReason?.reason ? ` · cache: ${cacheReason.reason}` : '';
-    el.textContent = `${log.loaded||0} publicados · ${log.withoutCode||0} sin código · ${log.repeatedCodes||0} códigos repetidos${visText} · ${fbText}${cacheText}`;
+    el.textContent = `${log.loaded||0} cargados · ${log.withoutCode||0} sin código · ${log.repeatedCodes||0} códigos repetidos · ${fbText}`;
   }
 }
 function updateClientLogUI() {
@@ -1547,8 +1429,7 @@ function showClientImportLog() {
   openModal(`<div class="modal-title">Log clientes</div>
   <div class="modal-sub">${escEmailHtml(log.fileName||'Archivo')} · ${formatClientUpdatedAt(log.updatedAt)}</div>
   <div style="font-size:12px;color:var(--text2);line-height:1.5;margin:10px 0;">
-    <div><strong>Publicados:</strong> ${log.loaded||0}</div>
-    ${log.inputLoaded ? `<div><strong>Procesados antes de reglas:</strong> ${log.inputLoaded||0}</div>` : ''}
+    <div><strong>Cargados:</strong> ${log.loaded||0}</div>
     <div><strong>Filas omitidas:</strong> ${log.invalidRows||0}</div>
     <div><strong>Usuario:</strong> ${escEmailHtml(log.updatedBy||'')}</div>
   </div>
@@ -1578,7 +1459,6 @@ function showProductImportLog() {
     <div><strong>Clasificados:</strong> ${log.classified||0}</div>
     <div><strong>Sin clasificación:</strong> ${log.unclassified||0}</div>
     <div><strong>Nombres distintos:</strong> ${log.nameMismatches||0}</div>
-    ${log.visibilityRules?.enabled ? `<div style="margin-top:6px;"><strong>Reglas visibilidad:</strong> ${log.visibilityRules.publishOnlyVisible ? 'aplicadas' : 'solo informadas'} · visibles ${log.visibilityRules.visibleCount||0} · ocultos ${log.visibilityRules.hiddenCount||0} · revisión ${log.visibilityRules.reviewCount||0}</div>` : ''}
     <div style="margin-top:6px;"><strong>Firebase:</strong> ${fbStatus}</div>
     ${fb.userMessage ? `<div><strong>Mensaje:</strong> ${escEmailHtml(fb.userMessage)}</div>` : ''}
     ${fb.reason ? `<div><strong>Motivo detectado:</strong> ${escEmailHtml(fb.reason)}</div>` : ''}
@@ -1597,7 +1477,7 @@ function productImportLogRows() {
   const log = LS.get('product_import_log');
   if (!log) return null;
   const fb = log.firebaseSync || {};
-  const headers=['tipo','fila','codigo','nombre','nombre_maestro','categoria_nivel_1','categoria_nivel_2','unidad','precio','stock','costo_ultimo','fecha_ultima_compra','detalle','archivo','actualizado','masterVersion','reglas_visibilidad','ocultos_por_regla','revision_por_regla','firebase_ok','firebase_motivo','firebase_mensaje_usuario','firebase_etapa','firebase_mensaje','firebase_paquete','firebase_total_paquetes','firebase_tiempo_seg'];
+  const headers=['tipo','fila','codigo','nombre','nombre_maestro','categoria_nivel_1','categoria_nivel_2','unidad','precio','stock','detalle','archivo','actualizado','masterVersion','firebase_ok','firebase_motivo','firebase_mensaje_usuario','firebase_etapa','firebase_mensaje','firebase_paquete','firebase_total_paquetes','firebase_tiempo_seg'];
   const logExtras = {
     firebase_ok: fb.ok === undefined ? '' : String(!!fb.ok),
     firebase_motivo: fb.reason || '',
@@ -1606,10 +1486,7 @@ function productImportLogRows() {
     firebase_mensaje: fb.message || '',
     firebase_paquete: fb.lastChunk !== undefined && fb.lastChunk !== null && Number(fb.lastChunk) >= 0 ? Number(fb.lastChunk)+1 : '',
     firebase_total_paquetes: fb.totalChunks || '',
-    firebase_tiempo_seg: fb.elapsedMs ? Math.round(fb.elapsedMs/1000) : '',
-    reglas_visibilidad: log.visibilityRules?.enabled ? (log.visibilityRules.publishOnlyVisible ? 'aplicadas' : 'solo informadas') : '',
-    ocultos_por_regla: log.hiddenByRules || '',
-    revision_por_regla: log.reviewByRules || ''
+    firebase_tiempo_seg: fb.elapsedMs ? Math.round(fb.elapsedMs/1000) : ''
   };
   return {log,headers,rows:(log.rows||[]).map(r=>headers.map(h=>r[h] ?? log[h] ?? logExtras[h] ?? ''))};
 }
@@ -1675,7 +1552,6 @@ function togglePinVis() {
 
 function enterWithVendor(v, idx, authInfo={}) {
   currentUser = {...v, idx, authProvider:authInfo.provider || 'pin', authEmail:authInfo.email || normalizeEmail(v.email||'')};
-  saveFitFlowSession(v, idx, authInfo);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('hdr-uname').textContent=v.name;
@@ -1686,7 +1562,6 @@ function enterWithVendor(v, idx, authInfo={}) {
   updateLogoMetaUI();
   updateCompanyConfigUI();
   updatePaymentConditionsUI();
-  updateProductVisibilityRulesUI();
   document.getElementById('adm-email-val').textContent  = LS.get('email')||'—';
   document.getElementById('adm-prod-count').textContent = prods.length+' productos';
   document.getElementById('adm-cli-count').textContent  = clients.length+' clientes';
@@ -1722,90 +1597,6 @@ function findAuthorizedVendorByEmail(email) {
   const vendors = LS.get('vendors')||DEFAULT_VENDORS;
   const idx = vendors.findIndex(v => normalizeEmail(v.email||'') === clean);
   return idx >= 0 ? {vendor:vendors[idx], idx} : null;
-}
-
-function readFitFlowSession() {
-  try { return JSON.parse(localStorage.getItem('ff2_'+FITFLOW_SESSION_KEY) || 'null'); }
-  catch(e) { return null; }
-}
-function saveFitFlowSession(v={}, idx=0, authInfo={}) {
-  const provider = authInfo.provider || '';
-  const email = normalizeEmail(authInfo.email || v.email || '');
-  if (!['google','email'].includes(provider) || !email) return;
-  const now = Date.now();
-  localStorage.setItem('ff2_'+FITFLOW_SESSION_KEY, JSON.stringify({
-    email,
-    provider,
-    vendorName:v.name || '',
-    vendorIdx:idx,
-    lastValidatedAt:authInfo.lastValidatedAt || now,
-    lastSeenAt:now
-  }));
-  lastAuthRecheckAt = now;
-}
-function clearFitFlowSession() {
-  try { localStorage.removeItem('ff2_'+FITFLOW_SESSION_KEY); } catch(e) {}
-  lastAuthRecheckAt = 0;
-}
-async function fetchAuthorizedVendorByEmail(email) {
-  if (!window._fbDB || !window._fbSDK?.getDoc) throw new Error('Firebase no disponible');
-  const { getDoc, doc } = window._fbSDK;
-  const snap = await getDoc(doc(window._fbDB,'config_dev','vendors'));
-  if (snap.exists() && Array.isArray(snap.data().value)) {
-    LS._setLocal('vendors', snap.data().value);
-    buildLoginSelect();
-  }
-  return findAuthorizedVendorByEmail(email);
-}
-async function validateFitFlowSessionEmail(email, opts={}) {
-  const clean = normalizeEmail(email);
-  if (!clean) return {ok:false, reason:'sin_correo'};
-  const provider = opts.provider || readFitFlowSession()?.provider || 'email';
-  if (navigator.onLine !== false && window._fbDB) {
-    try {
-      const authorized = await fetchAuthorizedVendorByEmail(clean);
-      if (!authorized) return {ok:false, reason:'no_autorizado'};
-      const validatedAt = Date.now();
-      saveFitFlowSession(authorized.vendor, authorized.idx, {provider, email:clean, lastValidatedAt:validatedAt});
-      return {ok:true, ...authorized, offline:false, lastValidatedAt:validatedAt};
-    } catch(e) {
-      console.log('Auth revalidation online error:', e?.message || e);
-    }
-  }
-  const session = readFitFlowSession();
-  const age = Date.now() - Number(session?.lastValidatedAt || 0);
-  const authorized = findAuthorizedVendorByEmail(clean);
-  if (authorized && session?.email === clean && age <= FITFLOW_AUTH_OFFLINE_MAX_MS) {
-    return {ok:true, ...authorized, offline:true, lastValidatedAt:Number(session.lastValidatedAt || 0)};
-  }
-  return {ok:false, reason:'offline_expirado'};
-}
-async function restoreFitFlowAuthSession(authUser=null, opts={}) {
-  if (currentUser) return true;
-  const session = readFitFlowSession();
-  const email = normalizeEmail(authUser?.email || session?.email || '');
-  const provider = session?.provider || (authUser ? 'google' : '');
-  if (!email || !['google','email'].includes(provider)) return false;
-  const result = await validateFitFlowSessionEmail(email, {provider});
-  if (!result.ok) {
-    if (navigator.onLine !== false && result.reason === 'no_autorizado') clearFitFlowSession();
-    return false;
-  }
-  enterWithVendor(result.vendor, result.idx, {provider, email, lastValidatedAt:result.lastValidatedAt || Date.now()});
-  if (result.offline && !opts.silent) toast('Sesión restaurada sin conexión','warn','medium');
-  return true;
-}
-async function revalidateCurrentSession(opts={}) {
-  if (!currentUser || !['google','email'].includes(currentUser.authProvider)) return true;
-  const force = opts.force === true;
-  if (!force && Date.now() - lastAuthRecheckAt < FITFLOW_AUTH_RECHECK_MS) return true;
-  lastAuthRecheckAt = Date.now();
-  const result = await validateFitFlowSessionEmail(currentUser.authEmail || currentUser.email || '', {provider:currentUser.authProvider});
-  if (result.ok) return true;
-  if (navigator.onLine === false && result.reason !== 'offline_expirado') return true;
-  toast(result.reason === 'offline_expirado' ? 'Sesión offline vencida. Ingresa nuevamente.' : 'Usuario ya no autorizado en FitFlow','err','long');
-  logout();
-  return false;
 }
 
 async function doGoogleLogin() {
@@ -2018,8 +1809,6 @@ async function confirmNewPassword() {
 
 function logout() {
   cart=[]; selectedClient=null; activeOrderId=null; currentUser=null;
-  firebaseSyncStarted = false;
-  clearFitFlowSession();
   window._fbSDK?.signOut?.(window._fbAuth).catch(()=>{});
   document.getElementById('pin-input').value='';
   document.getElementById('pin-err').textContent='';
@@ -4743,239 +4532,6 @@ function saveCompanyConfig() {
   toast('Datos de documentos guardados ✓','ok');
 }
 
-function normalizeProductVisibilityRules(raw={}) {
-  const base = JSON.parse(JSON.stringify(DEFAULT_PRODUCT_VISIBILITY_RULES));
-  const next = {...base, ...(raw||{})};
-  next.invalidPrice = {...base.invalidPrice, ...(raw.invalidPrice||{})};
-  next.stockDate = {...base.stockDate, ...(raw.stockDate||{})};
-  next.services = {...base.services, ...(raw.services||{})};
-  next.duplicates = {...base.duplicates, ...(raw.duplicates||{})};
-  next.exceptions = {...base.exceptions, ...(raw.exceptions||{})};
-  next.enabled = !!next.enabled;
-  next.publishOnlyVisible = next.publishOnlyVisible !== false;
-  next.invalidPrice.enabled = !!next.invalidPrice.enabled;
-  next.invalidPrice.minPrice = Math.max(0, Math.round(Number(next.invalidPrice.minPrice)||0));
-  next.stockDate.enabled = !!next.stockDate.enabled;
-  next.stockDate.months = Math.max(0, Math.round(Number(next.stockDate.months)||0));
-  next.stockDate.invalidDateAction = ['review','hide','show'].includes(next.stockDate.invalidDateAction) ? next.stockDate.invalidDateAction : 'review';
-  next.services.excludeFromStockDate = next.services.excludeFromStockDate !== false;
-  next.duplicates.autoResolve = next.duplicates.autoResolve !== false;
-  next.exceptions.alwaysShow = String(next.exceptions.alwaysShow||'').trim();
-  next.exceptions.alwaysHide = String(next.exceptions.alwaysHide||'').trim();
-  return next;
-}
-function productVisibilityRules() {
-  return normalizeProductVisibilityRules(LS.get('product_visibility_rules') || {});
-}
-function updateProductVisibilityRulesUI() {
-  const el = document.getElementById('adm-visibility-val');
-  if (!el) return;
-  const r = productVisibilityRules();
-  const parts = [];
-  parts.push(r.enabled ? 'Activas en cargas' : 'Sin aplicar');
-  if (r.invalidPrice.enabled) parts.push(`precio min $${r.invalidPrice.minPrice.toLocaleString('es-CL')}`);
-  if (r.stockDate.enabled) parts.push(`stock/compra ${r.stockDate.months}m`);
-  if (r.exceptions.alwaysShow || r.exceptions.alwaysHide) parts.push('con excepciones');
-  el.textContent = parts.join(' · ');
-}
-function adminProductVisibilityRules() {
-  const r = productVisibilityRules();
-  const actionOptions = [
-    ['review','Enviar a revisión'],
-    ['hide','Ocultar'],
-    ['show','Mostrar']
-  ].map(([v,l])=>`<option value="${v}" ${r.stockDate.invalidDateAction===v?'selected':''}>${l}</option>`).join('');
-  openModal(`<div class="modal-title">Visibilidad de productos</div>
-  <div class="modal-sub">Estas reglas se aplican en la carga o reagrupación del catálogo. Los productos ocultos quedan registrados en el log.</div>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;margin-top:10px;"><input type="checkbox" id="vis-enabled" ${r.enabled?'checked':''}> Activar reglas al publicar</label>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-publish-only" ${r.publishOnlyVisible?'checked':''}> Publicar solo productos visibles para vendedores</label>
-  <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-price-enabled" ${r.invalidPrice.enabled?'checked':''}> Ocultar precio no viable</label>
-  <label class="modal-lbl">Precio mínimo viable</label>
-  <input class="modal-inp" id="vis-price-min" type="number" min="0" step="1" value="${r.invalidPrice.minPrice}" onfocus="this.select()">
-  <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-stock-enabled" ${r.stockDate.enabled?'checked':''}> Ocultar sin stock con última compra antigua</label>
-  <label class="modal-lbl">Meses de antigüedad máxima</label>
-  <input class="modal-inp" id="vis-stock-months" type="number" min="0" step="1" value="${r.stockDate.months}" onfocus="this.select()">
-  <label class="modal-lbl">Fecha inválida o ilegible</label>
-  <select class="modal-inp" id="vis-invalid-date">${actionOptions}</select>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-services-exclude" ${r.services.excludeFromStockDate?'checked':''}> Excluir servicios de reglas de stock/fecha</label>
-  <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-dup-auto" ${r.duplicates.autoResolve?'checked':''}> Resolver duplicados automáticamente</label>
-  <div class="modal-sub" style="margin-top:4px;">Orden: ocultar siempre, mostrar siempre, precio viable, stock disponible y última compra más reciente.</div>
-  <label class="modal-lbl" style="margin-top:10px;">Mostrar siempre - códigos separados por coma o salto</label>
-  <textarea class="modal-inp" id="vis-always-show" style="height:70px;resize:none;">${escEmailHtml(r.exceptions.alwaysShow)}</textarea>
-  <label class="modal-lbl">Ocultar siempre - códigos separados por coma o salto</label>
-  <textarea class="modal-inp" id="vis-always-hide" style="height:70px;resize:none;">${escEmailHtml(r.exceptions.alwaysHide)}</textarea>
-  <div class="modal-btns" style="margin-top:14px;">
-    <button class="btn-confirm" onclick="saveProductVisibilityRules()">Guardar</button>
-    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-  </div>`);
-}
-function saveProductVisibilityRules() {
-  const rules = normalizeProductVisibilityRules({
-    enabled:document.getElementById('vis-enabled')?.checked,
-    publishOnlyVisible:document.getElementById('vis-publish-only')?.checked,
-    invalidPrice:{
-      enabled:document.getElementById('vis-price-enabled')?.checked,
-      minPrice:document.getElementById('vis-price-min')?.value
-    },
-    stockDate:{
-      enabled:document.getElementById('vis-stock-enabled')?.checked,
-      months:document.getElementById('vis-stock-months')?.value,
-      invalidDateAction:document.getElementById('vis-invalid-date')?.value
-    },
-    services:{excludeFromStockDate:document.getElementById('vis-services-exclude')?.checked},
-    duplicates:{autoResolve:document.getElementById('vis-dup-auto')?.checked},
-    exceptions:{
-      alwaysShow:document.getElementById('vis-always-show')?.value || '',
-      alwaysHide:document.getElementById('vis-always-hide')?.value || ''
-    }
-  });
-  LS.set('product_visibility_rules', rules);
-  updateProductVisibilityRulesUI();
-  closeModal();
-  toast('Reglas de visibilidad guardadas','ok');
-}
-
-function productVisibilityCodeSet(value='') {
-  return new Set(String(value||'').split(/[\s,;]+/).map(catalogCode).filter(Boolean));
-}
-function parseProductDateValue(value) {
-  if (value === null || value === undefined || value === '') return {raw:value, iso:'', time:null};
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return {raw:value, iso:value.toISOString().slice(0,10), time:value.getTime()};
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(value) * 86400000);
-    if (!Number.isNaN(d.getTime())) return {raw:value, iso:d.toISOString().slice(0,10), time:d.getTime()};
-  }
-  const text = String(value).trim();
-  const dm = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (dm) {
-    const yy = Number(dm[3].length === 2 ? `20${dm[3]}` : dm[3]);
-    const d = new Date(yy, Number(dm[2])-1, Number(dm[1]));
-    if (!Number.isNaN(d.getTime()) && d.getDate() === Number(dm[1]) && d.getMonth() === Number(dm[2])-1) {
-      return {raw:value, iso:d.toISOString().slice(0,10), time:d.getTime()};
-    }
-  }
-  const d = new Date(text);
-  return Number.isNaN(d.getTime()) ? {raw:value, iso:'', time:null} : {raw:value, iso:d.toISOString().slice(0,10), time:d.getTime()};
-}
-function isServiceProductForVisibility(p={}) {
-  return categoryTreeHas(p, ['servicio', 'logistica', 'flete', 'transporte']);
-}
-function productVisibilityRow(p={}, idx=0, tipo='Oculto por regla', detalle='') {
-  return {
-    tipo,
-    fila:p.sourceRow || idx+1,
-    codigo:p.cod || '',
-    nombre:p.nom || '',
-    categoria_nivel_1:p.cat1 || '',
-    categoria_nivel_2:p.cat2 || '',
-    unidad:p.unidad || '',
-    precio:p.precio,
-    stock:p.stock ?? '',
-    costo_ultimo:p.costoUltimo ?? '',
-    fecha_ultima_compra:p.fechaUltimaCompra || p.fechaUltimaCompraRaw || '',
-    detalle
-  };
-}
-function applyProductVisibilityRules(list=[], log={}, rawRules=null) {
-  const rules = normalizeProductVisibilityRules(rawRules || productVisibilityRules());
-  const nextLog = {...log, rows:[...(log.rows||[])]};
-  if (!rules.enabled) {
-    nextLog.visibilityRules = {enabled:false, inputCount:list.length, publishedCount:list.length, hiddenCount:0, reviewCount:0};
-    nextLog.loaded = list.length;
-    return {products:list, log:nextLog};
-  }
-  const alwaysShow = productVisibilityCodeSet(rules.exceptions.alwaysShow);
-  const alwaysHide = productVisibilityCodeSet(rules.exceptions.alwaysHide);
-  const hiddenByReason = {};
-  let reviewCount = 0;
-  let duplicateHiddenCount = 0;
-  const threshold = new Date();
-  threshold.setMonth(threshold.getMonth() - (rules.stockDate.months || 0));
-  const records = list.map((p,idx)=>({p, idx, hidden:false, reason:'', forced:alwaysShow.has(catalogCode(p.cod))}));
-  const hide = (rec, reason) => {
-    if (rec.hidden) return;
-    rec.hidden = true;
-    rec.reason = reason;
-    hiddenByReason[reason] = (hiddenByReason[reason] || 0) + 1;
-  };
-  records.forEach(rec => {
-    const p = rec.p;
-    const code = catalogCode(p.cod);
-    if (code && alwaysHide.has(code)) { hide(rec, 'Oculto manualmente'); return; }
-    if (rec.forced) return;
-    if (rules.invalidPrice.enabled && parsePrice(p.precio) < rules.invalidPrice.minPrice) {
-      hide(rec, `Precio no viable menor a $${rules.invalidPrice.minPrice.toLocaleString('es-CL')}`);
-      return;
-    }
-    const skipStockDate = rules.services.excludeFromStockDate && isServiceProductForVisibility(p);
-    if (rules.stockDate.enabled && !skipStockDate) {
-      const stock = parseStock(p.stock);
-      if (stock !== null && stock <= 0) {
-        const parsedDate = parseProductDateValue(p.fechaUltimaCompra || p.fechaUltimaCompraRaw);
-        if (!parsedDate.time) {
-          if (rules.stockDate.invalidDateAction === 'hide') hide(rec, 'Fecha última compra no legible');
-          else if (rules.stockDate.invalidDateAction === 'review') {
-            reviewCount++;
-            nextLog.rows.push(productVisibilityRow(p, rec.idx, 'Revisión regla', 'Sin stock y fecha última compra no legible; se mantiene visible para revisión'));
-          }
-        } else if (parsedDate.time < threshold.getTime()) {
-          hide(rec, `Sin stock y última compra anterior a ${rules.stockDate.months} meses`);
-        }
-      }
-    }
-  });
-  if (rules.duplicates.autoResolve) {
-    const byCode = new Map();
-    records.filter(rec=>!rec.hidden && catalogCode(rec.p.cod)).forEach(rec=>{
-      const code = catalogCode(rec.p.cod);
-      if (!byCode.has(code)) byCode.set(code, []);
-      byCode.get(code).push(rec);
-    });
-    byCode.forEach(items => {
-      if (items.length <= 1) return;
-      const ranked = [...items].sort((a,b) => {
-        const av = parsePrice(a.p.precio) >= Math.max(1, rules.invalidPrice.minPrice || 1) ? 1 : 0;
-        const bv = parsePrice(b.p.precio) >= Math.max(1, rules.invalidPrice.minPrice || 1) ? 1 : 0;
-        if (av !== bv) return bv - av;
-        const as = (parseStock(a.p.stock) || 0) > 0 ? 1 : 0;
-        const bs = (parseStock(b.p.stock) || 0) > 0 ? 1 : 0;
-        if (as !== bs) return bs - as;
-        const ad = parseProductDateValue(a.p.fechaUltimaCompra || a.p.fechaUltimaCompraRaw).time || 0;
-        const bd = parseProductDateValue(b.p.fechaUltimaCompra || b.p.fechaUltimaCompraRaw).time || 0;
-        if (ad !== bd) return bd - ad;
-        return a.idx - b.idx;
-      });
-      ranked.slice(1).forEach(rec => {
-        duplicateHiddenCount++;
-        hide(rec, 'Duplicado oculto automáticamente');
-      });
-    });
-  }
-  records.filter(r=>r.hidden).forEach(rec => nextLog.rows.push(productVisibilityRow(rec.p, rec.idx, 'Oculto por regla', rec.reason)));
-  const visible = records.filter(r=>!r.hidden).map(r=>r.p);
-  const output = rules.publishOnlyVisible ? visible : list;
-  nextLog.inputLoaded = list.length;
-  nextLog.loaded = output.length;
-  nextLog.hiddenByRules = records.filter(r=>r.hidden).length;
-  nextLog.reviewByRules = reviewCount;
-  nextLog.visibilityRules = {
-    enabled:true,
-    publishOnlyVisible:rules.publishOnlyVisible,
-    inputCount:list.length,
-    visibleCount:visible.length,
-    publishedCount:output.length,
-    hiddenCount:nextLog.hiddenByRules,
-    reviewCount,
-    duplicateHiddenCount,
-    hiddenByReason,
-    appliedAt:new Date().toISOString()
-  };
-  return {products:output, log:nextLog};
-}
-
 function applyLogo(kind, data) {
   if (arguments.length === 1) { data = kind; kind = 'login'; }
   const lp=document.getElementById('login-logo-placeholder'), hw=document.getElementById('hdr-logo-wrap');
@@ -5074,8 +4630,7 @@ async function uploadProds(inp) {
     const catalogMaster = await loadCatalogMasterFromFirebase();
     setLoadingText(`Procesando ${rows.length} filas...`);
     const parsed=parseProductRows(rows, catalogMaster);
-    const filtered=applyProductVisibilityRules(parsed.products, parsed.log);
-    const news=filtered.products;
+    const news=parsed.products;
     if(!news.length){toast('No se encontraron productos válidos','err');return;}
     const updatedAt = new Date().toISOString();
     const version = 'catalogo-'+updatedAt;
@@ -5086,7 +4641,7 @@ async function uploadProds(inp) {
     LS._setLocal('prods_version',version);
     LS._setLocal('prods_updated_at',updatedAt);
     LS._setLocal('prods_updated_by',currentUser?.name||'Administrador');
-    log={...filtered.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:f.name};
+    log={...parsed.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:f.name};
     LS._setLocal('product_import_log',log);
     updateProductLogUI();
     let firebasePublished = false;
@@ -5219,9 +4774,6 @@ function parseProductRows(rows, catalogMaster={}) {
     const unidad = unitLabel(rowVal(r,['UNIDAD','Unidad','unidad','un']));
     const precio = parsePrice(rowVal(r,['PRECIO','precio','preciodeve','precio deve','precio venta']));
     const stock = parseStock(rowVal(r,['STOCK','Stock','stock','EXISTENCIA','EXISTENCIAS','SALDO']));
-    const costoUltimo = parsePrice(rowVal(r,['COSTO ÚLTIMO','COSTO ULTIMO','costoultim','costo ultimo','costo']));
-    const fechaUltimaRaw = rowVal(r,['FECHA ÚLTIMA COMPRA','FECHA ULTIMA COMPRA','fechaulti','fecha ulti','fecha ultima','ultima compra']);
-    const fechaUltima = parseProductDateValue(fechaUltimaRaw);
     const master = rawCod ? masterByCode.get(rawCod) : null;
     const masterGroups = Array.isArray(master?.groups) ? master.groups.map(x=>String(x||'').trim()).filter(Boolean) : [];
     const groups = master
@@ -5262,11 +4814,7 @@ function parseProductRows(rows, catalogMaster={}) {
       groups:safeGroups,
       unidad,
       precio,
-      stock,
-      costoUltimo,
-      fechaUltimaCompra:fechaUltima.iso,
-      fechaUltimaCompraRaw:fechaUltimaRaw,
-      sourceRow:idx+2
+      stock
   });
   });
   Object.entries(byCode).forEach(([codigo,items])=>{
@@ -5307,9 +4855,6 @@ function regroupProductsWithCatalogMaster(list=[], catalogMaster={}) {
     const unidad = unitLabel(p?.unidad);
     const precio = parsePrice(p?.precio);
     const stock = parseStock(p?.stock);
-    const costoUltimo = parsePrice(p?.costoUltimo);
-    const fechaUltimaRaw = p?.fechaUltimaCompraRaw || p?.fechaUltimaCompra || '';
-    const fechaUltima = parseProductDateValue(fechaUltimaRaw);
     const master = rawCod ? masterByCode.get(rawCod) : null;
     const masterGroups = Array.isArray(master?.groups) ? master.groups.map(x=>String(x||'').trim()).filter(Boolean) : [];
     const groups = master
@@ -5341,7 +4886,7 @@ function regroupProductsWithCatalogMaster(list=[], catalogMaster={}) {
       log.unclassified++;
       log.rows.push({tipo:'Sin código',fila:idx+1,codigo:'',nombre:nom,categoria_nivel_1:cat1,categoria_nivel_2:cat2,unidad,precio,stock,detalle:'Se conserva con ID interno y queda sin clasificación'});
     }
-    products.push({...p, cod:rawCod, nom, unidad, precio, stock, costoUltimo, fechaUltimaCompra:fechaUltima.iso, fechaUltimaCompraRaw:fechaUltimaRaw, cat1, cat2, groups:safeGroups});
+    products.push({...p, cod:rawCod, nom, unidad, precio, stock, cat1, cat2, groups:safeGroups});
   });
   Object.entries(byCode).forEach(([codigo,items])=>{
     if (items.length > 1) {
@@ -5382,13 +4927,12 @@ async function confirmRegroupCatalog() {
     }
     setLoadingText(`Reagrupando ${prods.length} productos...`);
     const parsed = regroupProductsWithCatalogMaster(prods, catalogMaster);
-    const filtered = applyProductVisibilityRules(parsed.products, parsed.log);
-    if (!filtered.products.length) { toast('No se encontraron productos para reagrupar','err'); return; }
+    if (!parsed.products.length) { toast('No se encontraron productos para reagrupar','err'); return; }
     const updatedAt = new Date().toISOString();
     const version = 'catalogo-reagrupado-'+updatedAt;
     const previousLog = LS.get('product_import_log') || {};
-    const log = {...filtered.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:previousLog.fileName || 'Reagrupación sin recarga de archivo'};
-    prods = filtered.products;
+    const log = {...parsed.log, version, updatedAt, updatedBy:currentUser?.name||'Administrador', fileName:previousLog.fileName || 'Reagrupación sin recarga de archivo'};
+    prods = parsed.products;
     setLoadingText('Guardando catálogo reagrupado localmente...');
     const saved = await setListCache('prods', prods, version);
     LS._setLocal('prods_source','admin_upload');
@@ -5441,11 +4985,7 @@ async function syncProductsToFirebase(list, meta) {
     masterAvailable: !!log.masterAvailable,
     classified: log.classified || 0,
     unclassified: log.unclassified || 0,
-    nameMismatches: log.nameMismatches || 0,
-    visibilityRulesEnabled: !!log.visibilityRules?.enabled,
-    inputLoaded: log.inputLoaded || log.loaded || list.length,
-    hiddenByRules: log.hiddenByRules || 0,
-    reviewByRules: log.reviewByRules || 0
+    nameMismatches: log.nameMismatches || 0
   };
   const withTimeout = (promise, ms, label) => Promise.race([
     promise,
@@ -5756,7 +5296,6 @@ function toast(msg,type='',duration='') {
 
 window.addEventListener('online', () => {
   toast('Conexión recuperada. Sincronizando datos...','ok','medium');
-  revalidateCurrentSession({force:true});
   retryOrderSync();
   refreshFirebaseData();
 });
@@ -5766,15 +5305,6 @@ window.addEventListener('offline', () => {
 setInterval(() => {
   if (window._fbDB) retryOrderSync();
 }, 5 * 60 * 1000);
-setInterval(() => {
-  revalidateCurrentSession();
-}, FITFLOW_AUTH_RECHECK_MS);
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) revalidateCurrentSession();
-});
-window.addEventListener('focus', () => {
-  revalidateCurrentSession();
-});
 
 async function registerFitFlowOffline() {
   if (!('serviceWorker' in navigator)) return;
@@ -5803,7 +5333,6 @@ buildLoginSelect();
 clearLoginLogoPlaceholder();
 applyStoredLogos({login:true});
 updatePaymentConditionsUI();
-updateProductVisibilityRulesUI();
 updatePriceModeButtons();
 </script>
 
@@ -5811,7 +5340,7 @@ updatePriceModeButtons();
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyC0KNVxpJGnwA5RKLWheZL1h8zPqfC4GB0",
@@ -5823,7 +5352,6 @@ updatePriceModeButtons();
   });
   const db = getFirestore(app);
   const auth = getAuth(app);
-  await setPersistence(auth, browserLocalPersistence).catch(e => console.log('Auth persistence error:', e?.message || e));
   const googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({prompt:'select_account'});
 
@@ -5836,13 +5364,6 @@ updatePriceModeButtons();
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
   if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
   if (typeof handleFirebaseAuthAction === 'function') handleFirebaseAuthAction();
-  onAuthStateChanged(auth, user => {
-    if (user) {
-      restoreFitFlowAuthSession(user, {silent:true});
-    } else if (navigator.onLine === false) {
-      restoreFitFlowAuthSession(null);
-    }
-  });
   // La sincronizacion pesada queda despues del login.
   if (typeof syncAfterLogin === 'function') syncAfterLogin();
 </script>
