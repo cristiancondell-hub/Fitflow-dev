@@ -583,7 +583,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
     <!-- ADMIN -->
     <div class="pane" id="pane-admin">
       <div class="admin-wrap">
-        <div class="admin-section">
+        <div class="admin-section" data-admin-area="supra">
           <h3>Parametrizacion general</h3>
           <div class="admin-item" onclick="adminEmail()">
             <div class="admin-item-icon" style="background:#e3f2fd"><svg viewBox="0 0 24 24" fill="none" stroke="#1565c0" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
@@ -613,7 +613,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
           </div>
           <input type="file" id="logo-document-upload" class="upload-hidden" accept="image/*" onchange="uploadLogo(this,'document')">
         </div>
-        <div class="admin-section">
+        <div class="admin-section" data-admin-area="loads">
           <h3>Carga de maestros</h3>
           <div class="admin-item" onclick="document.getElementById('prod-upload').click()">
             <div class="admin-item-icon" style="background:#e8f5e9"><svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
@@ -624,7 +624,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             <div class="admin-item-icon" style="background:#eef2ff"><svg viewBox="0 0 24 24" fill="none" stroke="#1a3d8f" stroke-width="2"><path d="M4 7h16M4 12h10M4 17h16"/><path d="M17 10l3 2-3 2"/></svg></div>
             <div><div class="admin-item-label">Reagrupar catálogo</div><div class="admin-item-sub">Usa la jerarquía maestro actual sin cambiar precios ni stock</div></div>
           </div>
-          <div class="admin-item" onclick="adminProductVisibilityRules()">
+          <div class="admin-item" data-admin-area="supra" onclick="adminProductVisibilityRules()">
             <div class="admin-item-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2"><path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/><circle cx="8" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
             <div><div class="admin-item-label">Visibilidad de productos</div><div class="admin-item-sub" id="adm-visibility-val">Reglas sin aplicar a publicación</div></div>
           </div>
@@ -634,12 +634,12 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
           </div>
           <input type="file" id="cli-upload" class="upload-hidden" accept=".xls,.xlsx,.csv" onchange="uploadClis(this)">
         </div>
-        <div class="admin-section">
+        <div class="admin-section" data-admin-area="users">
           <h3>Usuarios y PINs</h3>
           <div id="vendor-list"></div>
           <button class="btn-add-vendor" onclick="addVendor()">+ Agregar usuario</button>
         </div>
-        <div class="admin-section">
+        <div class="admin-section" data-admin-area="logs">
           <h3>Logs</h3>
           <div class="admin-item" onclick="openEmailDebugLog()">
             <div class="admin-item-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><path d="M9 13h6M9 17h4"/></svg></div>
@@ -744,8 +744,8 @@ let activeOrderId = null;
 let firebaseSyncStarted = false;
 let lastAuthRecheckAt = 0;
 const DEFAULT_VENDORS = [
-  {name:'Administrador',pin:'0000',isAdmin:true,email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0},
-  {name:'Vendedor 1',pin:'1111',isAdmin:false,email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0}
+  {name:'Administrador',pin:'0000',isAdmin:true,role:'supra_admin',email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0},
+  {name:'Vendedor 1',pin:'1111',isAdmin:false,role:'vendedor',email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0}
 ];
 const DEFAULT_PAYMENT_CONDITIONS = ['Contado','Transferencia','Credito 30 dias'];
 const DEFAULT_PRODUCT_VISIBILITY_RULES = {
@@ -1738,6 +1738,7 @@ function updateClientLogUI() {
   if (el && log) el.textContent = `${log.loaded||0} cargados · ${log.invalidRows||0} omitidos`;
 }
 function showClientImportLog() {
+  if (!requireAdminAccess()) return;
   const log = LS.get('client_import_log');
   if (!log) { toast('Aun no hay log de clientes','warn'); return; }
   const rows = (log.rows||[]).slice(0,80).map(r=>`<tr><td>${escEmailHtml(r.tipo)}</td><td>${escEmailHtml(r.fila||'')}</td><td>${escEmailHtml(r.rut||'')}</td><td>${escEmailHtml(r.nombre||'')}</td><td>${escEmailHtml(r.detalle||'')}</td></tr>`).join('');
@@ -1758,6 +1759,7 @@ function showClientImportLog() {
   <div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`);
 }
 function showProductImportLog() {
+  if (!requireAdminAccess()) return;
   const log = LS.get('product_import_log');
   if (!log) { toast('Aún no hay log de catálogo','warn'); return; }
   const fb = log.firebaseSync || {};
@@ -1811,6 +1813,7 @@ function productImportLogRows() {
   return {log,headers,rows:(log.rows||[]).map(r=>headers.map(h=>r[h] ?? log[h] ?? logExtras[h] ?? ''))};
 }
 function downloadProductImportLog() {
+  if (!requireAdminAccess()) return;
   const data = productImportLogRows();
   if (!data) { toast('Aún no hay log de catálogo','warn'); return; }
   const escHtml=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1827,6 +1830,7 @@ function downloadProductImportLog() {
   toast('Descarga preparada ✓','ok');
 }
 function showProductImportLogText() {
+  if (!requireAdminAccess()) return;
   const data = productImportLogRows();
   if (!data) { toast('Aún no hay log de catálogo','warn'); return; }
   const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
@@ -1850,10 +1854,63 @@ function updateOneLogoMetaUI(kind) {
   el.textContent = `${cfg.label}: ${label} · ${formatLogoUpdatedAt(LS.get(cfg.local+'_updated_at'))}`;
 }
 
+const USER_ROLES = {
+  vendedor:{label:'Vendedor'},
+  admin:{label:'Administrador'},
+  supra_admin:{label:'Supra Administrador'}
+};
+function normalizeVendorRole(v={}, idx=0) {
+  if (USER_ROLES[v.role]) return v.role;
+  if (v.isAdmin && idx === 0 && String(v.name||'').trim().toLowerCase() === 'administrador') return 'supra_admin';
+  if (v.isAdmin) return 'admin';
+  return 'vendedor';
+}
+function normalizeVendor(v={}, idx=0) {
+  const role = normalizeVendorRole(v, idx);
+  return {...v, role, isAdmin:role === 'admin' || role === 'supra_admin'};
+}
+function currentUserRole() {
+  return normalizeVendorRole(currentUser || {}, Number.isInteger(currentUser?.idx) ? currentUser.idx : 0);
+}
+function roleLabel(role) {
+  return USER_ROLES[role]?.label || USER_ROLES.vendedor.label;
+}
+function supraAdminCount(vendors=LS.get('vendors')||DEFAULT_VENDORS) {
+  return (vendors||[]).map(normalizeVendor).filter(v => v.role === 'supra_admin').length;
+}
+function isAdminRole() {
+  const role = currentUserRole();
+  return role === 'admin' || role === 'supra_admin';
+}
+function isSupraAdmin() {
+  return currentUserRole() === 'supra_admin';
+}
+function requireAdminAccess() {
+  if (isAdminRole()) return true;
+  toast('No tienes acceso a Admin','err');
+  return false;
+}
+function requireSupraAccess() {
+  if (isSupraAdmin()) return true;
+  toast('Acceso solo Supra Administrador','err');
+  return false;
+}
+function applyAdminVisibility() {
+  const admin = isAdminRole();
+  const supra = isSupraAdmin();
+  const tab = document.getElementById('tab-admin');
+  if (tab) tab.classList.toggle('hidden', !admin);
+  document.querySelectorAll('[data-admin-area]').forEach(el => {
+    const area = el.getAttribute('data-admin-area');
+    const visible = area === 'logs' || area === 'loads' ? admin : supra;
+    el.classList.toggle('hidden', !visible);
+  });
+}
+
 // ══ LOGIN ═══════════════════════════════════════
 function buildLoginSelect() {
   const sel = document.getElementById('login-user-sel');
-  const vendors = LS.get('vendors')||DEFAULT_VENDORS;
+  const vendors = (LS.get('vendors')||DEFAULT_VENDORS).map(normalizeVendor);
   sel.innerHTML = vendors.map((v,i)=>`<option value="${i}">${v.name}</option>`).join('');
   sel.onchange = () => { document.getElementById('pin-input').value=''; document.getElementById('pin-err').textContent=''; };
 }
@@ -1882,14 +1939,14 @@ function setHeaderUserAvatar(name, photoURL='') {
 }
 
 function enterWithVendor(v, idx, authInfo={}) {
+  v = normalizeVendor(v, idx);
   currentUser = {...v, idx, authProvider:authInfo.provider || 'pin', authEmail:authInfo.email || normalizeEmail(v.email||''), authPhotoURL:authInfo.photoURL || ''};
   saveFitFlowSession(v, idx, authInfo);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('hdr-uname').textContent=v.name;
   setHeaderUserAvatar(v.name, authInfo.photoURL || '');
-  if (v.isAdmin) document.getElementById('tab-admin').classList.remove('hidden');
-  else           document.getElementById('tab-admin').classList.add('hidden');
+  applyAdminVisibility();
   applyStoredLogos();
   updateLogoMetaUI();
   updateCompanyConfigUI();
@@ -1910,7 +1967,7 @@ function enterWithVendor(v, idx, authInfo={}) {
 }
 
 function doLogin() {
-  const vendors = LS.get('vendors')||DEFAULT_VENDORS;
+  const vendors = (LS.get('vendors')||DEFAULT_VENDORS).map(normalizeVendor);
   const idx = parseInt(document.getElementById('login-user-sel').value);
   const pin = document.getElementById('pin-input').value;
   const v = vendors[idx];
@@ -1927,7 +1984,7 @@ document.getElementById('pin-input').addEventListener('keydown',e=>{ if(e.key===
 
 function findAuthorizedVendorByEmail(email) {
   const clean = normalizeEmail(email);
-  const vendors = LS.get('vendors')||DEFAULT_VENDORS;
+  const vendors = (LS.get('vendors')||DEFAULT_VENDORS).map(normalizeVendor);
   const idx = vendors.findIndex(v => normalizeEmail(v.email||'') === clean);
   return idx >= 0 ? {vendor:vendors[idx], idx} : null;
 }
@@ -2247,6 +2304,7 @@ function showUserMenu() {
 
 // ══ TABS ════════════════════════════════════════
 function goTab(id) {
+  if (id === 'admin' && !requireAdminAccess()) return;
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('act'));
   const tabEl  = document.getElementById('tab-'+id);
@@ -2716,9 +2774,9 @@ function vendorDiscountLabel(v={}) {
   return `(Prod ${formatDiscountLimit(v.maxProductDiscount)}% · Serv ${formatDiscountLimit(v.maxServiceDiscount)}%)`;
 }
 function currentVendorForDiscounts() {
-  const vendors = LS.get('vendors') || DEFAULT_VENDORS;
+  const vendors = (LS.get('vendors') || DEFAULT_VENDORS).map(normalizeVendor);
   if (Number.isInteger(currentUser?.idx) && vendors[currentUser.idx]) return vendors[currentUser.idx];
-  return currentUser || {};
+  return normalizeVendor(currentUser || {}, Number.isInteger(currentUser?.idx) ? currentUser.idx : 0);
 }
 function itemSourceProduct(item={}) {
   if (item.id || item.cod || item.nom) {
@@ -4205,6 +4263,7 @@ function openSendClientModal(docType) {
 }
 
 function openEmailDebugLog() {
+  if (!requireAdminAccess()) return;
   const log = LS.get('lastEmailDebug');
   const text = log ? JSON.stringify(log, null, 2) : 'Todavia no hay registro de envio.';
   const safeText = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -4215,6 +4274,7 @@ function openEmailDebugLog() {
 }
 
 function copyEmailDebugLog() {
+  if (!requireAdminAccess()) return;
   const log = LS.get('lastEmailDebug');
   const text = log ? JSON.stringify(log, null, 2) : '';
   navigator.clipboard?.writeText(text).then(()=>toast('Log copiado','ok')).catch(()=>toast('No se pudo copiar automaticamente','warn'));
@@ -4546,8 +4606,8 @@ function renderHistorial() {
   const q      = (document.getElementById('hist-search-inp')?.value || '').trim().toLowerCase();
   const sort   = document.getElementById('hist-sort-sel')?.value || 'fecha_desc';
 
-  // Filtro por usuario: admin ve todo, vendedor solo los suyos
-  let orders = currentUser?.isAdmin
+  // Filtro por usuario: solo Supra Administrador ve todo. Admin normal opera como vendedor.
+  let orders = isSupraAdmin()
     ? all
     : all.filter(o => !o.vendedor || o.vendedor === currentUser?.name);
 
@@ -4790,7 +4850,7 @@ function openDeleteHistoryOrderModal(id) {
     toast('Solo se pueden eliminar pedidos en proceso','warn');
     return;
   }
-  if (o.vendedor && o.vendedor !== currentUser?.name && !currentUser?.isAdmin) {
+  if (o.vendedor && o.vendedor !== currentUser?.name && !isSupraAdmin()) {
     toast('Solo puedes eliminar tus pedidos en proceso','warn');
     return;
   }
@@ -4921,18 +4981,21 @@ function saveNewCli() {
 
 // ══ ADMIN ════════════════════════════════════════
 function adminEmail() {
+  if (!requireSupraAccess()) return;
   openModal(`<div class="modal-title">Email Central para envío de documentos</div>
   <label class="modal-lbl">Email</label>
   <input class="modal-inp" id="adm-email-inp" type="email" value="${LS.get('email')||''}" placeholder="ventas@empresa.cl">
   <div class="modal-btns"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-confirm" onclick="saveAdmEmail()">Guardar</button></div>`);
 }
 function saveAdmEmail() {
+  if (!requireSupraAccess()) return;
   const v=document.getElementById('adm-email-inp').value.trim();
   if(!v){toast('Ingresa un email válido','err');return;}
   LS.set('email',v); document.getElementById('adm-email-val').textContent=v; closeModal(); toast('Email guardado ✓','ok');
 }
 
 function adminPaymentConditions() {
+  if (!requireSupraAccess()) return;
   const rows = paymentConditions().map((v,i)=>paymentConditionRowHTML(v,i)).join('');
   openModal(`<div class="modal-title">Condiciones de pago</div>
   <div class="modal-sub">Estas opciones quedan disponibles para seleccionar al enviar documentos.</div>
@@ -4953,6 +5016,7 @@ function addPaymentConditionRow() {
   if(list) list.insertAdjacentHTML('beforeend', paymentConditionRowHTML('', Date.now()));
 }
 function savePaymentConditions() {
+  if (!requireSupraAccess()) return;
   const rows=[...document.querySelectorAll('.payment-condition-row')].map(row=>({
     name:row.querySelector('.payment-condition-name')?.value.trim()||'',
     codigo:row.querySelector('.payment-condition-code')?.value.trim()||''
@@ -4978,6 +5042,7 @@ function updateCompanyConfigUI() {
 }
 
 function adminCompanyConfig() {
+  if (!requireSupraAccess()) return;
   const cfg = getCompanyConfig();
   openModal(`<div class="modal-title">Datos empresa documentos</div>
   <label class="modal-lbl">Nombre comercial</label>
@@ -4994,6 +5059,7 @@ function adminCompanyConfig() {
 }
 
 function saveCompanyConfig() {
+  if (!requireSupraAccess()) return;
   const cfg = {
     nombreComercial:document.getElementById('adm-company-commercial-name').value.trim(),
     nombre:document.getElementById('adm-company-name').value.trim() || DEFAULT_COMPANY_CONFIG.nombre,
@@ -5043,6 +5109,7 @@ function updateProductVisibilityRulesUI() {
   el.textContent = parts.join(' · ');
 }
 function adminProductVisibilityRules() {
+  if (!requireSupraAccess()) return;
   const r = productVisibilityRules();
   const actionOptions = [
     ['review','Enviar a revisión'],
@@ -5077,6 +5144,7 @@ function adminProductVisibilityRules() {
   </div>`);
 }
 function saveProductVisibilityRules() {
+  if (!requireSupraAccess()) return;
   const rules = normalizeProductVisibilityRules({
     enabled:document.getElementById('vis-enabled')?.checked,
     publishOnlyVisible:document.getElementById('vis-publish-only')?.checked,
@@ -5293,6 +5361,7 @@ async function loadLogoFromFirebase(kind) {
   }
 }
 function uploadLogo(inp, kind='login') {
+  if (!requireSupraAccess()) { if (inp) inp.value=''; return; }
   const f=inp.files[0]; if(!f) return;
   const cfg = LOGO_TYPES[kind] || LOGO_TYPES.login;
   showLoading('Actualizando '+cfg.label.toLowerCase()+'…');
@@ -5327,6 +5396,7 @@ async function syncLogoToFirebase(kind, data, meta) {
 }
 
 async function uploadProds(inp) {
+  if (!requireAdminAccess()) { if (inp) inp.value=''; return; }
   const f=inp.files[0]; if(!f) return; showLoading('Actualizando catálogo…');
   let log = null;
   try {
@@ -5619,7 +5689,7 @@ function regroupProductsWithCatalogMaster(list=[], catalogMaster={}) {
 }
 
 function openRegroupCatalogModal() {
-  if (!currentUser?.isAdmin) { toast('Solo Admin puede reagrupar catálogo','err'); return; }
+  if (!requireAdminAccess()) return;
   if (!prods.length) { toast('No hay catálogo cargado para reagrupar','err'); return; }
   openModal(`<div class="modal-title">Reagrupar catálogo</div>
     <div class="modal-sub">Se conservarán nombres, precios, unidades y stock. Solo se recalcularán las agrupaciones usando la jerarquía maestro actual de Firebase.</div>
@@ -5634,6 +5704,7 @@ function openRegroupCatalogModal() {
 }
 
 async function confirmRegroupCatalog() {
+  if (!requireAdminAccess()) return;
   closeModal();
   if (!prods.length) { toast('No hay catálogo cargado para reagrupar','err'); return; }
   showLoading('Reagrupando catálogo...');
@@ -5847,6 +5918,7 @@ function parseClientRows(rows) {
 }
 
 async function uploadClis(inp) {
+  if (!requireAdminAccess()) { if (inp) inp.value=''; return; }
   const f=inp.files[0]; if(!f) return; showLoading('Actualizando clientes…');
   try {
     setLoadingText('Leyendo archivo de clientes...');
@@ -5917,9 +5989,9 @@ async function syncClientsToFirebase(list, meta) {
 }
 
 function renderVendorList() {
-  const vendors=LS.get('vendors')||[];
+  const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
   document.getElementById('vendor-list').innerHTML=vendors.map((v,i)=>`<div class="vendor-row">
-    <div class="vendor-name">${escEmailHtml(v.name)}${v.isAdmin?' 👑':''} <span class="vendor-discount-tag">${vendorDiscountLabel(v)}</span><div style="font-size:11px;font-weight:700;color:var(--text3);margin-top:2px;">${v.email ? escEmailHtml(v.email) : 'Sin correo'}</div></div>
+    <div class="vendor-name">${escEmailHtml(v.name)} <span class="vendor-discount-tag">${escEmailHtml(roleLabel(v.role))}</span> <span class="vendor-discount-tag">${vendorDiscountLabel(v)}</span><div style="font-size:11px;font-weight:700;color:var(--text3);margin-top:2px;">${v.email ? escEmailHtml(v.email) : 'Sin correo'}</div></div>
     <div class="vendor-pin" title="PIN">${v.pin}</div>
     <div class="vendor-pin" title="Codigo ERP">${escEmailHtml(v.codigo||'----')}</div>
     <button class="vendor-edit-btn" onclick="editVendor(${i})">Editar</button>
@@ -5928,13 +6000,16 @@ function renderVendorList() {
 }
 
 function editVendor(i) {
-  const vendors=LS.get('vendors')||[];
+  if (!requireSupraAccess()) return;
+  const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
   const isNew = i === 'new' || i < 0;
-  const v=isNew ? {name:'',pin:'',codigo:'',email:'',maxProductDiscount:0,maxServiceDiscount:0,isAdmin:false} : vendors[i];
+  const v=isNew ? {name:'',pin:'',codigo:'',email:'',role:'vendedor',maxProductDiscount:0,maxServiceDiscount:0,isAdmin:false} : vendors[i];
   if (!v) return;
+  const roleOptions = Object.keys(USER_ROLES).map(role=>`<option value="${role}" ${normalizeVendorRole(v,i)===role?'selected':''}>${roleLabel(role)}</option>`).join('');
   openModal(`<div class="modal-title">${isNew ? 'Agregar usuario' : 'Editar usuario'}</div>
   <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
     <div><label class="modal-lbl">Nombre</label><input class="modal-inp" id="edit-v-name" value="${escEmailHtml(v.name)}" autocomplete="off" style="margin-bottom:0"></div>
+    <div><label class="modal-lbl">Rol</label><select class="modal-inp" id="edit-v-role" style="margin-bottom:0">${roleOptions}</select></div>
     <div><label class="modal-lbl">PIN (4 digitos)</label><input class="modal-inp" id="edit-v-pin" type="tel" maxlength="4" value="${escEmailHtml(v.pin)}" style="margin-bottom:0"></div>
     <div><label class="modal-lbl">Codigo usuario ERP</label><input class="modal-inp" id="edit-v-code" type="tel" inputmode="numeric" maxlength="4" value="${escEmailHtml(v.codigo||'')}" autocomplete="off" placeholder="Ej: 0004" style="margin-bottom:0"></div>
     <div><label class="modal-lbl">Correo vendedor</label><input class="modal-inp" id="edit-v-email" type="email" value="${escEmailHtml(v.email||'')}" autocomplete="email" placeholder="vendedor@empresa.cl" style="margin-bottom:0"></div>
@@ -5946,34 +6021,58 @@ function editVendor(i) {
   <div class="modal-btns"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-confirm" onclick="saveEditVendor('${isNew ? 'new' : i}')">Guardar</button></div>`);
 }
 function saveEditVendor(i) {
-  const name=document.getElementById('edit-v-name').value.trim(), pin=document.getElementById('edit-v-pin').value.trim(), codigo=document.getElementById('edit-v-code')?.value.trim()||'', email=normalizeEmail(document.getElementById('edit-v-email')?.value||''), maxProductDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-prod')?.value), maxServiceDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-serv')?.value);
+  if (!requireSupraAccess()) return;
+  const name=document.getElementById('edit-v-name').value.trim(), role=document.getElementById('edit-v-role')?.value||'vendedor', pin=document.getElementById('edit-v-pin').value.trim(), codigo=document.getElementById('edit-v-code')?.value.trim()||'', email=normalizeEmail(document.getElementById('edit-v-email')?.value||''), maxProductDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-prod')?.value), maxServiceDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-serv')?.value);
   if(!name){toast('El nombre no puede estar vacío','err');return;}
+  if(!USER_ROLES[role]){toast('Selecciona un rol valido','err');return;}
   if(!/^\d{4}$/.test(pin)){toast('PIN debe ser 4 dígitos','err');return;}
   if(codigo && !/^\d{1,4}$/.test(codigo)){toast('Codigo usuario ERP debe ser numerico, maximo 4 digitos','err');return;}
   if(email && !isValidEmail(email)){toast('Correo vendedor invalido','err');return;}
-  const vendors=LS.get('vendors')||[];
+  const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
+  const isAdmin = role === 'admin' || role === 'supra_admin';
   if (i === 'new') {
-    vendors.push({name,pin,codigo,email,maxProductDiscount,maxServiceDiscount,isAdmin:false});
+    vendors.push({name,pin,codigo,email,role,maxProductDiscount,maxServiceDiscount,isAdmin});
   } else {
     const idx=parseInt(i);
     if (!vendors[idx]) return;
-    vendors[idx].name=name; vendors[idx].pin=pin; vendors[idx].codigo=codigo; vendors[idx].email=email; vendors[idx].maxProductDiscount=maxProductDiscount; vendors[idx].maxServiceDiscount=maxServiceDiscount;
-    if (currentUser?.idx === idx) currentUser = {...vendors[idx], idx, authProvider:currentUser.authProvider, authEmail:currentUser.authEmail, authPhotoURL:currentUser.authPhotoURL};
+    const wasLastSupra = vendors[idx].role === 'supra_admin' && role !== 'supra_admin' && supraAdminCount(vendors) <= 1;
+    if (wasLastSupra) { toast('Debe quedar al menos un Supra Administrador','err','long'); return; }
+    vendors[idx].name=name; vendors[idx].role=role; vendors[idx].isAdmin=isAdmin; vendors[idx].pin=pin; vendors[idx].codigo=codigo; vendors[idx].email=email; vendors[idx].maxProductDiscount=maxProductDiscount; vendors[idx].maxServiceDiscount=maxServiceDiscount;
+    if (currentUser?.idx === idx) {
+      currentUser = {...vendors[idx], idx, authProvider:currentUser.authProvider, authEmail:currentUser.authEmail, authPhotoURL:currentUser.authPhotoURL};
+      document.getElementById('hdr-uname').textContent=currentUser.name;
+      setHeaderUserAvatar(currentUser.name, currentUser.authPhotoURL || '');
+      applyAdminVisibility();
+    }
   }
   LS.set('vendors',vendors);
   renderVendorList(); buildLoginSelect(); closeModal(); toast(i === 'new' ? 'Vendedor agregado ✓' : 'Usuario actualizado ✓','ok');
 }
 
 function addVendor() {
+  if (!requireSupraAccess()) return;
   editVendor('new');
 }
 
 function delVendor(i) {
+  if (!requireSupraAccess()) return;
+  const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
+  if (vendors[i]?.role === 'supra_admin' && supraAdminCount(vendors) <= 1) {
+    toast('No puedes eliminar el único Supra Administrador','err','long');
+    return;
+  }
   openModal(`<div class="modal-title">¿Eliminar usuario?</div><div class="modal-sub">Esta acción no se puede deshacer.</div>
   <div class="modal-btns"><button class="btn-cancel" onclick="closeModal()">Cancelar</button><button class="btn-danger" onclick="confirmDelVendor(${i})">Eliminar</button></div>`);
 }
 function confirmDelVendor(i) {
-  const vendors=LS.get('vendors')||[]; vendors.splice(i,1); LS.set('vendors',vendors);
+  if (!requireSupraAccess()) return;
+  const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
+  if (vendors[i]?.role === 'supra_admin' && supraAdminCount(vendors) <= 1) {
+    closeModal();
+    toast('No puedes eliminar el único Supra Administrador','err','long');
+    return;
+  }
+  vendors.splice(i,1); LS.set('vendors',vendors);
   renderVendorList(); buildLoginSelect(); closeModal(); toast('Usuario eliminado','ok');
 }
 
