@@ -1870,13 +1870,24 @@ function togglePinVis() {
   }
 }
 
+function setHeaderUserAvatar(name, photoURL='') {
+  const av = document.getElementById('hdr-av');
+  if (!av) return;
+  const cleanPhoto = String(photoURL || '').trim();
+  av.textContent = (name?.[0]||'?').toUpperCase();
+  av.style.backgroundImage = cleanPhoto ? `url("${cleanPhoto.replace(/"/g, '%22')}")` : '';
+  av.style.backgroundSize = cleanPhoto ? 'cover' : '';
+  av.style.backgroundPosition = cleanPhoto ? 'center' : '';
+  av.style.color = cleanPhoto ? 'transparent' : '#fff';
+}
+
 function enterWithVendor(v, idx, authInfo={}) {
-  currentUser = {...v, idx, authProvider:authInfo.provider || 'pin', authEmail:authInfo.email || normalizeEmail(v.email||'')};
+  currentUser = {...v, idx, authProvider:authInfo.provider || 'pin', authEmail:authInfo.email || normalizeEmail(v.email||''), authPhotoURL:authInfo.photoURL || ''};
   saveFitFlowSession(v, idx, authInfo);
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('hdr-uname').textContent=v.name;
-  document.getElementById('hdr-av').textContent=(v.name?.[0]||'?').toUpperCase();
+  setHeaderUserAvatar(v.name, authInfo.photoURL || '');
   if (v.isAdmin) document.getElementById('tab-admin').classList.remove('hidden');
   else           document.getElementById('tab-admin').classList.add('hidden');
   applyStoredLogos();
@@ -1988,7 +1999,7 @@ async function restoreFitFlowAuthSession(authUser=null, opts={}) {
     if (navigator.onLine !== false && result.reason === 'no_autorizado') clearFitFlowSession();
     return false;
   }
-  enterWithVendor(result.vendor, result.idx, {provider, email, lastValidatedAt:result.lastValidatedAt || Date.now()});
+  enterWithVendor(result.vendor, result.idx, {provider, email, photoURL:authUser?.photoURL || '', lastValidatedAt:result.lastValidatedAt || Date.now()});
   if (result.offline && !opts.silent) toast('Sesión restaurada sin conexión','warn','medium');
   return true;
 }
@@ -2029,7 +2040,7 @@ async function doGoogleLogin() {
       toast('Correo Google no autorizado en Admin','err');
       return;
     }
-    enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email});
+    enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email, photoURL:result?.user?.photoURL || ''});
   } catch(e) {
     hideLoading();
     const code = e?.code || '';
@@ -5947,7 +5958,7 @@ function saveEditVendor(i) {
     const idx=parseInt(i);
     if (!vendors[idx]) return;
     vendors[idx].name=name; vendors[idx].pin=pin; vendors[idx].codigo=codigo; vendors[idx].email=email; vendors[idx].maxProductDiscount=maxProductDiscount; vendors[idx].maxServiceDiscount=maxServiceDiscount;
-    if (currentUser?.idx === idx) currentUser = {...vendors[idx], idx};
+    if (currentUser?.idx === idx) currentUser = {...vendors[idx], idx, authProvider:currentUser.authProvider, authEmail:currentUser.authEmail, authPhotoURL:currentUser.authPhotoURL};
   }
   LS.set('vendors',vendors);
   renderVendorList(); buildLoginSelect(); closeModal(); toast(i === 'new' ? 'Vendedor agregado ✓' : 'Usuario actualizado ✓','ok');
