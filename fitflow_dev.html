@@ -815,6 +815,8 @@ function removeLocalCacheFamily(key) {
     }
     localStorage.removeItem('ff2_'+key+'_cache_meta');
     localStorage.removeItem('ff2_'+key);
+    localStorage.removeItem('ff2_'+key+'_version');
+    localStorage.removeItem('ff2_'+key+'_cache_status');
   } catch(e) {}
 }
 
@@ -957,6 +959,16 @@ async function deleteBigCache(key) {
   } catch(e) { return false; }
 }
 
+async function clearBigCacheFamily(key) {
+  const meta = await getBigCache(key+'_chunk_meta');
+  if (meta?.chunks) {
+    for (let i=0; i<meta.chunks; i++) await deleteBigCache(`${key}_chunk_${i}`);
+  }
+  await deleteBigCache(key+'_chunk_meta');
+  await deleteBigCache(key+'_record');
+  await deleteBigCache(key);
+}
+
 async function getBigChunkCacheInfo(key) {
   try {
     const meta = await getBigCache(key+'_chunk_meta');
@@ -1061,6 +1073,10 @@ async function getListCache(key) {
 }
 
 async function getListCacheInfo(key) {
+  const sessionStatus = LS_MEMORY[key+'_cache_status'];
+  if (sessionStatus?.method === 'session_memory' && Array.isArray(LS_MEMORY[key])) {
+    return {list:cloneStorageValue(LS_MEMORY[key]), version:LS_MEMORY[key+'_version']||sessionStatus.version||null, count:LS_MEMORY[key].length, method:'session_memory'};
+  }
   const bigChunks = await getBigChunkCacheInfo(key);
   if (Array.isArray(bigChunks.list)) return bigChunks;
   const record = await getBigCache(key+'_record');
@@ -1076,6 +1092,8 @@ async function getListCacheInfo(key) {
 
 async function setListCache(key, list, version) {
   const record = {list, version, count:list.length, savedAt:new Date().toISOString()};
+  await clearBigCacheFamily(key);
+  removeLocalCacheFamily(key);
   const savedBigChunks = await setBigChunkCache(key, list, version);
   const confirmedBigChunks = savedBigChunks ? await confirmListCache(key, version, list.length) : null;
   const savedRecord = confirmedBigChunks ? false : await setBigCache(key+'_record', record);
@@ -1103,14 +1121,19 @@ async function setListCache(key, list, version) {
       verified:true
     });
   } else {
-    LS._setLocal(key+'_cache_status', {
+    LS_MEMORY[key] = cloneStorageValue(list);
+    LS_MEMORY[key+'_version'] = version;
+    LS_MEMORY[key+'_cache_status'] = {
       version,
       count:list.length,
       savedAt:record.savedAt,
-      method:'no_confirmado',
+      method:'session_memory',
       verified:false,
-      reason:'No se pudo releer el catálogo local después de guardarlo'
-    });
+      reason:'No se pudo guardar en el navegador; se mantendrá solo mientras la app siga abierta'
+    };
+    try {
+      localStorage.setItem('ff2_'+key+'_cache_status', JSON.stringify(LS_MEMORY[key+'_cache_status']));
+    } catch(e) {}
   }
   return ok;
 }
@@ -1145,6 +1168,7 @@ function cacheReadyReason(key, meta, info) {
   const localVersion = LS.get(key+'_version');
   const cacheVersion = info.version || status?.version || localVersion;
   if (cacheVersion !== meta.version) return {ready:false, reason:`versión local ${cacheVersion || 'sin versión'} distinta de Firebase ${meta.version}`};
+  if (status?.method === 'session_memory') return {ready:true, reason:'cache de sesión vigente'};
   return {ready:true, reason:'cache local vigente'};
 }
 
