@@ -7,7 +7,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#06245f">
 <title>FitFlow · Centro Fitting</title>
-<link rel="manifest" href="fitflow_manifest_dev.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -3453,7 +3452,7 @@ function flatZero(v, w) {
 function flatRut(v='') {
   const compact = String(v||'').replace(/[^0-9kK]/g,'').toUpperCase();
   const rut = compact.length > 1 ? compact.slice(0,-1)+'-'+compact.slice(-1) : compact;
-  return flatRight(rut, 10);
+  return flatLeft(rut, 10);
 }
 function flatQty(v) {
   const n = Math.max(0, Number(v)||0);
@@ -5295,39 +5294,14 @@ function toast(msg,type='',duration='') {
 }
 
 window.addEventListener('online', () => {
-  toast('Conexión recuperada. Sincronizando datos...','ok','medium');
   retryOrderSync();
   refreshFirebaseData();
-});
-window.addEventListener('offline', () => {
-  toast('Sin conexión. Puedes seguir usando datos guardados localmente.','warn','long');
 });
 setInterval(() => {
   if (window._fbDB) retryOrderSync();
 }, 5 * 60 * 1000);
 
-async function registerFitFlowOffline() {
-  if (!('serviceWorker' in navigator)) return;
-  if (!window.isSecureContext || location.protocol === 'file:') return;
-  try {
-    const reg = await navigator.serviceWorker.register('fitflow_sw_dev.js', {scope:'./', updateViaCache:'none'});
-    if (reg?.waiting) reg.waiting.postMessage({type:'SKIP_WAITING'});
-    reg.addEventListener('updatefound', () => {
-      const next = reg.installing;
-      if (!next) return;
-      next.addEventListener('statechange', () => {
-        if (next.state === 'installed' && navigator.serviceWorker.controller) {
-          toast('Nueva versión disponible. Cierra y vuelve a abrir FitFlow para actualizar.','warn','long');
-        }
-      });
-    });
-  } catch(e) {
-    console.log('Offline cache registration error:', e?.message || e);
-  }
-}
-
 // ══ INIT ════════════════════════════════════════
-registerFitFlowOffline();
 loadState();
 buildLoginSelect();
 clearLoginLogoPlaceholder();
