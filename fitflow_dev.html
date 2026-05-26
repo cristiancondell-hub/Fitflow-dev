@@ -1482,7 +1482,16 @@ async function loadFromFirebase(opts={}) {
         }
         if (remoteProds?.length) {
           prods = remoteProds;
+          LS_MEMORY.prods = cloneStorageValue(prods);
+          LS_MEMORY.prods_version = meta.version||'firebase';
+          LS_MEMORY.prods_cache_status = {version:meta.version||'firebase', count:prods.length, savedAt:new Date().toISOString(), method:'session_memory_pre_save', verified:false, reason:'Disponible en memoria durante esta sesión'};
           const saved = await setListCache('prods', prods, meta.version||'firebase');
+          const savedInfo = await getListCacheInfo('prods');
+          const saveReason = saved
+            ? `cache guardado ${savedInfo.method || 'desconocido'} (${savedInfo.count || 0})`
+            : `cache no persistente; queda en sesión (${prods.length})`;
+          console.log('Resultado cache catálogo:', saveReason);
+          LS._setLocal('prods_cache_reason', {reason:saveReason, checkedAt:new Date().toISOString(), localMethod:savedInfo.method||'session_memory', localCount:savedInfo.count||prods.length, remoteCount:meta.count||0, remoteVersion:meta.version||''});
           LS._setLocal('prods_source', 'firebase');
           LS._setLocal('prods_version', meta.version||'firebase');
           LS._setLocal('prods_updated_at', meta.updatedAt||null);
@@ -1524,7 +1533,16 @@ async function loadFromFirebase(opts={}) {
         }
         if (remoteClients?.length) {
           clients = remoteClients;
+          LS_MEMORY.clients = cloneStorageValue(clients);
+          LS_MEMORY.clients_version = meta.version||'firebase';
+          LS_MEMORY.clients_cache_status = {version:meta.version||'firebase', count:clients.length, savedAt:new Date().toISOString(), method:'session_memory_pre_save', verified:false, reason:'Disponible en memoria durante esta sesión'};
           const saved = await setListCache('clients', clients, meta.version||'firebase');
+          const savedInfo = await getListCacheInfo('clients');
+          const saveReason = saved
+            ? `cache guardado ${savedInfo.method || 'desconocido'} (${savedInfo.count || 0})`
+            : `cache no persistente; queda en sesión (${clients.length})`;
+          console.log('Resultado cache clientes:', saveReason);
+          LS._setLocal('clients_cache_reason', {reason:saveReason, checkedAt:new Date().toISOString(), localMethod:savedInfo.method||'session_memory', localCount:savedInfo.count||clients.length, remoteCount:meta.count||0, remoteVersion:meta.version||''});
           LS._setLocal('clients_source', 'firebase');
           LS._setLocal('clients_version', meta.version||'firebase');
           LS._setLocal('clients_updated_at', meta.updatedAt||null);
