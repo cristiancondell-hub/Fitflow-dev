@@ -5554,7 +5554,7 @@ async function confirmRegroupCatalog() {
 
 async function syncProductsToFirebase(list, meta) {
   if (!window._fbDB) throw new Error('Firebase no disponible');
-  const { setDoc, getDoc, doc } = window._fbSDK;
+  const { setDoc, getDoc, deleteDoc, doc } = window._fbSDK;
   const db = window._fbDB;
   const startedAt = Date.now();
   let stage = 'inicio';
@@ -5591,6 +5591,14 @@ async function syncProductsToFirebase(list, meta) {
     promise,
     new Promise((_, reject) => setTimeout(() => reject(new Error(label+' sin respuesta')), ms))
   ]);
+  let previousChunks = 0;
+  try {
+    const previousMetaSnap = await withTimeout(getDoc(doc(db,'config_dev','products_meta')), 12000, 'Lectura resumen anterior');
+    const previousMeta = previousMetaSnap.exists() ? previousMetaSnap.data() : null;
+    previousChunks = Number(previousMeta?.chunks || 0) || 0;
+  } catch(e) {
+    previousChunks = 0;
+  }
   async function writeProductChunk(i) {
     const ref = doc(db,'products_chunks_dev',String(i).padStart(4,'0'));
     const payload = {
@@ -5620,6 +5628,17 @@ async function syncProductsToFirebase(list, meta) {
     }
     throw lastError || new Error(`Paquete ${i+1}/${chunks} sin respuesta`);
   }
+  async function deleteOldProductChunks() {
+    if (!deleteDoc || previousChunks <= chunks) return 0;
+    let deleted = 0;
+    for (let i=chunks; i<previousChunks; i++) {
+      stage = `limpieza ${i+1}/${previousChunks}`;
+      setLoadingText(`Limpiando paquetes antiguos ${i+1}/${previousChunks}...`);
+      await withTimeout(deleteDoc(doc(db,'products_chunks_dev',String(i).padStart(4,'0'))), 20000, `Limpieza paquete ${i+1}/${previousChunks}`);
+      deleted++;
+    }
+    return deleted;
+  }
   try {
     for (let i=0; i<chunks; i++) {
       stage = `paquete ${i+1}/${chunks}`;
@@ -5627,13 +5646,14 @@ async function syncProductsToFirebase(list, meta) {
       await writeProductChunk(i);
       lastChunk = i;
     }
+    const deletedOldChunks = await deleteOldProductChunks();
     stage = 'resumen';
     setLoadingText('Guardando resumen del catálogo...');
-    await withTimeout(setDoc(doc(db,'config_dev','products_meta'), metaSummary), 45000, 'Resumen catálogo');
+    await withTimeout(setDoc(doc(db,'config_dev','products_meta'), {...metaSummary, cleanedOldChunks:deletedOldChunks, previousChunks}), 45000, 'Resumen catálogo');
     stage = 'log';
     setLoadingText('Guardando log de catálogo...');
     try {
-      await withTimeout(setDoc(doc(db,'config_dev','product_import_log'), {...log, version:meta.version, updatedAt:meta.updatedAt, updatedBy:meta.updatedBy, fileName:meta.fileName||'', firebaseSync:{ok:true,stage:'verificado',elapsedMs:Date.now()-startedAt,lastChunk,totalChunks:chunks,version:meta.version,at:new Date().toISOString()}}), 45000, 'Log catálogo');
+      await withTimeout(setDoc(doc(db,'config_dev','product_import_log'), {...log, version:meta.version, updatedAt:meta.updatedAt, updatedBy:meta.updatedBy, fileName:meta.fileName||'', firebaseSync:{ok:true,stage:'verificado',elapsedMs:Date.now()-startedAt,lastChunk,totalChunks:chunks,version:meta.version,chunkSize,cleanedOldChunks:deletedOldChunks,previousChunks,at:new Date().toISOString()}}), 45000, 'Log catálogo');
     } catch(e) {
       console.log('Product import log sync error:', e?.message || e);
     }
@@ -5950,7 +5970,7 @@ updatePriceModeButtons();
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const app = initializeApp({
@@ -5971,7 +5991,7 @@ updatePriceModeButtons();
   window._fbDB  = db;
   window._fbAuth = auth;
   window._fbGoogleProvider = googleProvider;
-  window._fbSDK = { getDoc, setDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
+  window._fbSDK = { getDoc, setDoc, deleteDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
 
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
   if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
