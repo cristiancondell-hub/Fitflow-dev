@@ -944,6 +944,43 @@ async function setBigCache(key, value) {
   } catch(e) { return false; }
 }
 
+async function getBigChunkCacheInfo(key) {
+  try {
+    const meta = await getBigCache(key+'_chunk_meta');
+    if (!meta?.chunks) return {list:null, version:null, count:0, method:''};
+    const parts = [];
+    for (let i=0; i<meta.chunks; i++) {
+      const part = await getBigCache(`${key}_chunk_${i}`);
+      if (!Array.isArray(part)) return {list:null, version:meta.version||null, count:0, method:'indexeddb_chunks_incompleto'};
+      parts.push(part);
+    }
+    const list = parts.flat();
+    if (list.length !== meta.count) return {list:null, version:meta.version||null, count:list.length, method:'indexeddb_chunks_conteo_distinto'};
+    return {list, version:meta.version||null, count:list.length, method:'indexeddb_chunks'};
+  } catch(e) {
+    return {list:null, version:null, count:0, method:'indexeddb_chunks_error'};
+  }
+}
+
+async function setBigChunkCache(key, list, version) {
+  try {
+    const oldMeta = await getBigCache(key+'_chunk_meta');
+    const chunkSize = 250;
+    const chunks = Math.ceil(list.length / chunkSize);
+    if (oldMeta?.chunks) {
+      for (let i=0; i<oldMeta.chunks; i++) await setBigCache(`${key}_chunk_${i}`, []);
+    }
+    for (let i=0; i<chunks; i++) {
+      const ok = await setBigCache(`${key}_chunk_${i}`, list.slice(i*chunkSize, (i+1)*chunkSize));
+      if (!ok) return false;
+    }
+    const meta = {version, count:list.length, chunks, chunkSize, savedAt:new Date().toISOString()};
+    return await setBigCache(key+'_chunk_meta', meta);
+  } catch(e) {
+    return false;
+  }
+}
+
 function getLocalChunkCache(key) {
   try {
     const meta = LS.get(key+'_cache_meta');
@@ -976,28 +1013,33 @@ function setLocalChunkCache(key, list, version) {
 }
 
 async function getListCache(key) {
+  const bigChunks = await getBigChunkCacheInfo(key);
+  if (Array.isArray(bigChunks.list)) return bigChunks.list;
   const record = await getBigCache(key+'_record');
   if (record && Array.isArray(record.list)) return record.list;
   return await getBigCache(key) || getLocalChunkCache(key) || LS.get(key);
 }
 
 async function getListCacheInfo(key) {
+  const bigChunks = await getBigChunkCacheInfo(key);
+  if (Array.isArray(bigChunks.list)) return bigChunks;
   const record = await getBigCache(key+'_record');
   if (record && Array.isArray(record.list)) {
-    return {list:record.list, version:record.version||null, count:record.count||record.list.length};
+    return {list:record.list, version:record.version||null, count:record.count||record.list.length, method:'indexeddb_record'};
   }
   const chunkMeta = LS.get(key+'_cache_meta');
   const chunkList = getLocalChunkCache(key);
-  if (chunkList) return {list:chunkList, version:chunkMeta?.version||null, count:chunkList.length};
+  if (chunkList) return {list:chunkList, version:chunkMeta?.version||null, count:chunkList.length, method:'local_chunks'};
   const list = await getBigCache(key) || LS.get(key);
-  return {list, version:LS.get(key+'_version'), count:Array.isArray(list)?list.length:0};
+  return {list, version:LS.get(key+'_version'), count:Array.isArray(list)?list.length:0, method:Array.isArray(list)?'legacy':'none'};
 }
 
 async function setListCache(key, list, version) {
   const record = {list, version, count:list.length, savedAt:new Date().toISOString()};
-  const savedRecord = await setBigCache(key+'_record', record);
+  const savedBigChunks = await setBigChunkCache(key, list, version);
+  const savedRecord = savedBigChunks ? false : await setBigCache(key+'_record', record);
   let savedBig = false, savedChunks = false, savedFullLocal = false;
-  if (!savedRecord) {
+  if (!savedBigChunks && !savedRecord) {
     savedBig = await setBigCache(key, list);
     if (!savedBig) savedChunks = setLocalChunkCache(key, list, version);
     if (!savedChunks) {
@@ -1005,8 +1047,8 @@ async function setListCache(key, list, version) {
       savedFullLocal = Array.isArray(LS.get(key)) && LS.get(key).length === list.length;
     }
   }
-  const ok = savedRecord || savedBig || savedChunks || savedFullLocal;
-  if (ok) LS._setLocal(key+'_cache_status', {version, count:list.length, savedAt:record.savedAt, method:savedRecord?'indexeddb_record':savedBig?'indexeddb_list':savedChunks?'local_chunks':'local_full'});
+  const ok = savedBigChunks || savedRecord || savedBig || savedChunks || savedFullLocal;
+  if (ok) LS._setLocal(key+'_cache_status', {version, count:list.length, savedAt:record.savedAt, method:savedBigChunks?'indexeddb_chunks':savedRecord?'indexeddb_record':savedBig?'indexeddb_list':savedChunks?'local_chunks':'local_full'});
   return ok;
 }
 
@@ -1309,6 +1351,7 @@ async function loadFromFirebase(opts={}) {
       const ready = cacheReadyReason('prods', meta, localProdsInfo);
       const localProds = localProdsInfo.list;
       if (ready.ready) {
+        LS._setLocal('prods_cache_reason', {reason:'cache local vigente', checkedAt:new Date().toISOString(), localMethod:localProdsInfo.method||'', localCount:localProdsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
         prods = localProds;
         LS._setLocal('prods_source', 'firebase');
         LS._setLocal('prods_version', meta.version||'firebase');
@@ -1321,6 +1364,7 @@ async function loadFromFirebase(opts={}) {
         updateProductLogUI();
       } else {
         console.log('Descarga catálogo requerida:', ready.reason);
+        LS._setLocal('prods_cache_reason', {reason:ready.reason, checkedAt:new Date().toISOString(), localMethod:localProdsInfo.method||'', localCount:localProdsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
         showLoading('Preparando descarga de catalogo...');
         let remoteProds = null;
         try {
@@ -1351,6 +1395,7 @@ async function loadFromFirebase(opts={}) {
       const ready = cacheReadyReason('clients', meta, localClientsInfo);
       const localClients = localClientsInfo.list;
       if (ready.ready) {
+        LS._setLocal('clients_cache_reason', {reason:'cache local vigente', checkedAt:new Date().toISOString(), localMethod:localClientsInfo.method||'', localCount:localClientsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
         clients = localClients;
         LS._setLocal('clients_source', 'firebase');
         LS._setLocal('clients_version', meta.version||'firebase');
@@ -1361,6 +1406,7 @@ async function loadFromFirebase(opts={}) {
         updateClientMetaUI();
       } else {
         console.log('Descarga clientes requerida:', ready.reason);
+        LS._setLocal('clients_cache_reason', {reason:ready.reason, checkedAt:new Date().toISOString(), localMethod:localClientsInfo.method||'', localCount:localClientsInfo.count||0, remoteCount:meta.count||0, remoteVersion:meta.version||''});
         showLoading('Preparando descarga de clientes...');
         let remoteClients = null;
         try {
@@ -1484,7 +1530,9 @@ function updateProductLogUI() {
     const fb = log.firebaseSync;
     const fbText = fb ? (fb.ok ? 'Firebase verificado' : `Firebase sin confirmar: ${fb.stage || 'publicación'}`) : 'Firebase pendiente';
     const visText = log.visibilityRules?.enabled ? ` · ${log.hiddenByRules||0} ocultos` : '';
-    el.textContent = `${log.loaded||0} publicados · ${log.withoutCode||0} sin código · ${log.repeatedCodes||0} códigos repetidos${visText} · ${fbText}`;
+    const cacheReason = LS.get('prods_cache_reason');
+    const cacheText = cacheReason?.reason ? ` · cache: ${cacheReason.reason}` : '';
+    el.textContent = `${log.loaded||0} publicados · ${log.withoutCode||0} sin código · ${log.repeatedCodes||0} códigos repetidos${visText} · ${fbText}${cacheText}`;
   }
 }
 function updateClientLogUI() {
