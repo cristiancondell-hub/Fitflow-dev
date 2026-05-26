@@ -532,7 +532,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             </select>
           </div>
         </div>
-        <input class="cart-obs" id="cart-obs" type="text" placeholder="Obs:" oninput="protectPickupObservation(this)" onkeydown="guardPickupObservationKey(event,this)" onclick="keepPickupCursorEditable(this)" onfocus="keepPickupCursorEditable(this)">
+        <input class="cart-obs" id="cart-obs" type="text" maxlength="300" placeholder="Obs:" oninput="protectPickupObservation(this); enforceObservationLimit(this)" onkeydown="guardPickupObservationKey(event,this)" onclick="keepPickupCursorEditable(this)" onfocus="keepPickupCursorEditable(this)">
         <div class="cart-action-btns">
           <button class="btn-delete" onclick="openDeletePedidoModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
@@ -2206,7 +2206,7 @@ function searchTextNorm(v) {
 function productSearchScore(p, rawQ) {
   const q = String(rawQ||'').trim();
   const qText = searchTextNorm(q);
-  if (!qText) return Infinity;
+  if (!qText) return null;
 
   const code = String(p?.cod||'').trim();
   const codeText = searchTextNorm(code);
@@ -2214,28 +2214,37 @@ function productSearchScore(p, rawQ) {
   const groupsText = searchTextNorm(productCatalogGroups(p).join(' '));
   const words = qText.split(' ').filter(Boolean);
   const numericQuery = /^[0-9]+$/.test(q);
+  const score = (rank, length=0, pos=0) => ({rank, length, pos});
 
-  if (code === q) return 0;
-  if (codeText === qText) return 1;
+  if (code === q) return score(0, code.length, 0);
+  if (codeText === qText) return score(1, codeText.length, 0);
 
   if (numericQuery) {
-    if (code.startsWith(q)) return 10;
-    if (code.includes(q)) return 20;
-    if (nameText.includes(qText)) return 70;
-    if (groupsText.includes(qText)) return 90;
-    return Infinity;
+    if (code.startsWith(q)) return score(10, code.length, 0);
+    const codePos = code.indexOf(q);
+    if (codePos >= 0) return score(20, code.length, codePos);
+    const namePos = nameText.indexOf(qText);
+    if (namePos >= 0) return score(70, nameText.length, namePos);
+    const groupPos = groupsText.indexOf(qText);
+    if (groupPos >= 0) return score(90, groupsText.length, groupPos);
+    return null;
   }
 
-  if (codeText.startsWith(qText)) return 15;
-  if (codeText.includes(qText)) return 25;
-  if (nameText === qText) return 30;
-  if (nameText.startsWith(qText)) return 35;
-  if (nameText.includes(qText)) return 40;
-  if (words.length && words.every(w => nameText.includes(w))) return 50;
-  if (words.length && words.some(w => nameText.includes(w))) return 70;
-  if (groupsText.includes(qText)) return 80;
-  if (words.length && words.every(w => groupsText.includes(w))) return 85;
-  return Infinity;
+  if (codeText.startsWith(qText)) return score(15, codeText.length, 0);
+  const codePos = codeText.indexOf(qText);
+  if (codePos >= 0) return score(25, codeText.length, codePos);
+  if (nameText === qText) return score(30, nameText.length, 0);
+  if (nameText.startsWith(qText)) return score(35, nameText.length, 0);
+  const nameWords = nameText.split(' ').filter(Boolean);
+  if (nameWords.some(w => w.startsWith(qText))) return score(38, nameText.length, nameText.indexOf(qText));
+  const namePos = nameText.indexOf(qText);
+  if (namePos >= 0) return score(40, nameText.length, namePos);
+  if (words.length && words.every(w => nameText.includes(w))) return score(50, nameText.length, Math.min(...words.map(w => nameText.indexOf(w)).filter(n => n >= 0)));
+  if (words.length && words.some(w => nameText.includes(w))) return score(70, nameText.length, Math.min(...words.map(w => nameText.indexOf(w)).filter(n => n >= 0)));
+  const groupPos = groupsText.indexOf(qText);
+  if (groupPos >= 0) return score(80, groupsText.length, groupPos);
+  if (words.length && words.every(w => groupsText.includes(w))) return score(85, groupsText.length, Math.min(...words.map(w => groupsText.indexOf(w)).filter(n => n >= 0)));
+  return null;
 }
 
 function renderSearch(q) {
@@ -2244,8 +2253,13 @@ function renderSearch(q) {
   if (!q) { list.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><p>Busca un producto</p><small>Por nombre, código o categoría</small></div>`; cnt.textContent=''; return; }
   const res=prods
     .map((p,idx)=>({p,idx,score:productSearchScore(p,q)}))
-    .filter(x=>Number.isFinite(x.score))
-    .sort((a,b)=>a.score-b.score || a.idx-b.idx)
+    .filter(x=>x.score)
+    .sort((a,b)=>
+      a.score.rank-b.score.rank ||
+      a.score.length-b.score.length ||
+      a.score.pos-b.score.pos ||
+      a.idx-b.idx
+    )
     .slice(0,60)
     .map(x=>x.p);
   cnt.textContent=res.length?`${res.length} resultado${res.length!==1?'s':''}` :'';
@@ -2547,34 +2561,63 @@ function modalPricePreviewHTML(p, qty=1, desc=0) {
     <div class="desc-row"><label>Desc %</label><input id="modal-desc" type="number" inputmode="numeric" min="0" max="${maxDiscountForItem(p)}" value="${desc||''}" placeholder="0" onfocus="selectQtyInput(this)" onclick="selectQtyInput(this)" oninput="updateModalPrice('${prodKey(p).replace(/'/g,"\\'")}')"></div>
     <div class="modal-price-total"><span class="modal-price-label">Total</span><span class="modal-price-value" id="modal-total-value">${priceDuoHTML(total)}</span></div>`;
 }
-function confirmAdd(key) {
-  const p=prods.find(x=>prodKey(x)===key); if(!p) return;
-  const qty=modalCtx.qty||1, desc=clampDiscountForItem(p, document.getElementById('modal-desc')?.value);
+function addProductToCart(p, qty=1, desc=0) {
   const existing=cart.find(x=>x.id===prodKey(p));
   if(existing) {
     existing.qty=(parseInt(existing.qty)||1)+qty;
     if(desc) existing.desc=desc;
-      if(!existing.unidad && p?.unidad) existing.unidad=unitLabel(p.unidad);
-      if(existing.stock === undefined && p?.stock !== undefined) existing.stock=p.stock;
+    if(!existing.unidad && p?.unidad) existing.unidad=unitLabel(p.unidad);
+    if(existing.stock === undefined && p?.stock !== undefined) existing.stock=p.stock;
     existing.cat1=existing.cat1||p.cat1||'';
     existing.cat2=existing.cat2||p.cat2||'';
   } else {
     cart.push({id:prodKey(p),cod:p.cod||'',nom:p.nom,cat1:p.cat1||'',cat2:p.cat2||'',precio:p.precio,unidad:unitLabel(p.unidad),stock:p.stock,qty,desc});
   }
+  return existing;
+}
+function openReplacePickupWithFreightConfirm(key, qty=1, desc=0) {
+  const p=prods.find(x=>prodKey(x)===key);
+  if(!p) { toast('No se encontro el flete seleccionado','err'); return; }
+  const safeKey = encodeURIComponent(key);
+  openModal(`<div class="modal-title">Cambiar retiro por flete</div>
+  <div class="modal-sub">Este pedido tiene marcado Retiro en Local. Al agregar este flete se eliminará esa observación protegida y el flete quedará agregado como servicio al pedido.</div>
+  <div style="font-size:12px;color:var(--text2);line-height:1.4;margin-top:10px;">
+    <strong style="color:var(--text);">${escEmailHtml(p.nom||'Flete')}</strong><br>
+    ${priceDuoHTML(p.precio,p.unidad)}
+  </div>
+  <div class="modal-btns" style="margin-top:14px;">
+    <button class="btn-confirm-green" onclick="confirmReplacePickupWithFreight('${safeKey}',${parseInt(qty)||1},${Number(desc)||0})">Agregar flete</button>
+    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+  </div>`);
+}
+function confirmReplacePickupWithFreight(encodedKey, qty=1, desc=0) {
+  const key = decodeURIComponent(encodedKey || '');
+  const p=prods.find(x=>prodKey(x)===key);
+  if(!p) { toast('No se encontro el flete seleccionado','err'); return; }
+  setCurrentCartObs(stripPickupObservation(currentCartObs()));
+  setPickupObservationLock(false);
+  const existing = addProductToCart(p, parseInt(qty)||1, Number(desc)||0);
+  closeModal(); updateCartDot(); renderCart(); goTab('carrito');
+  toast(existing ? `Flete actualizado y Retiro en Local eliminado` : 'Flete agregado y Retiro en Local eliminado','ok');
+}
+function confirmAdd(key) {
+  const p=prods.find(x=>prodKey(x)===key); if(!p) return;
+  const qty=modalCtx.qty||1, desc=clampDiscountForItem(p, document.getElementById('modal-desc')?.value);
+  if (isFreightProduct(p) && hasPickupFreightSelected()) {
+    openReplacePickupWithFreightConfirm(key, qty, desc);
+    return;
+  }
+  const existing=addProductToCart(p, qty, desc);
   closeModal(); updateCartDot(); renderCart(); toast(existing ? `+${qty} unidades agregadas` : 'Agregado al pedido','ok');
 }
 function confirmAddMore(key) {
   const addQty=parseInt(document.getElementById('modal-qty')?.value)||1;
-  const item=cart.find(x=>x.id===key);
   const p=prods.find(x=>prodKey(x)===key);
-  if(item) {
-    item.qty=(parseInt(item.qty)||1)+addQty;
-    if(!item.unidad && p?.unidad) item.unidad=unitLabel(p.unidad);
-    if(item.stock === undefined && p?.stock !== undefined) item.stock=p.stock;
-    if(p){ item.cat1=item.cat1||p.cat1||''; item.cat2=item.cat2||p.cat2||''; }
-  } else if(p) {
-    cart.push({id:prodKey(p),cod:p.cod||'',nom:p.nom,cat1:p.cat1||'',cat2:p.cat2||'',precio:p.precio,unidad:unitLabel(p.unidad),stock:p.stock,qty:addQty,desc:0});
+  if(p && isFreightProduct(p) && hasPickupFreightSelected()) {
+    openReplacePickupWithFreightConfirm(key, addQty, 0);
+    return;
   }
+  if(p) addProductToCart(p, addQty, 0);
   closeModal(); updateCartDot(); renderCart(); toast(`+${addQty} unidades agregadas`,'ok');
 }
 
@@ -2668,6 +2711,16 @@ function applyPickupObservation(obs='') {
   const rest = stripPickupObservation(obs);
   return rest ? `${PICKUP_OBS_PREFIX} ${rest}` : PICKUP_OBS_PREFIX;
 }
+const OBS_MAX_CHARS = 300;
+function enforceObservationLimit(el=document.getElementById('cart-obs')) {
+  if (!el) return;
+  const value = String(el.value || '');
+  if (value.length <= OBS_MAX_CHARS) return;
+  const start = Math.min(el.selectionStart || OBS_MAX_CHARS, OBS_MAX_CHARS);
+  el.value = value.slice(0, OBS_MAX_CHARS);
+  el.setSelectionRange(start, start);
+  toast(`Observaciones: máximo ${OBS_MAX_CHARS} caracteres`,'warn','medium');
+}
 function setPickupObservationLock(active) {
   const el = document.getElementById('cart-obs');
   if (el) el.dataset.pickupLock = active ? '1' : '';
@@ -2688,6 +2741,7 @@ function protectPickupObservation(el=document.getElementById('cart-obs')) {
   if ((el.selectionStart||0) < editableStart) {
     el.setSelectionRange(editableStart, editableStart);
   }
+  enforceObservationLimit(el);
 }
 function guardPickupObservationKey(ev, el=document.getElementById('cart-obs')) {
   if (!el || !pickupObservationLocked(el)) return;
@@ -2731,19 +2785,10 @@ function addFreightToCart(encodedKey) {
   const p = prods.find(x=>prodKey(x)===key);
   if(!p) { toast('No se encontro el flete seleccionado','err'); return; }
   if (hasPickupFreightSelected()) {
-    setCurrentCartObs(stripPickupObservation(currentCartObs()));
-    setPickupObservationLock(false);
+    openReplacePickupWithFreightConfirm(key, 1, 0);
+    return;
   }
-  const existing = cart.find(x=>x.id===prodKey(p));
-  if(existing) {
-    existing.qty=(parseInt(existing.qty)||1)+1;
-    if(!existing.unidad && p?.unidad) existing.unidad=unitLabel(p.unidad);
-    if(existing.stock === undefined && p?.stock !== undefined) existing.stock=p.stock;
-    existing.cat1=existing.cat1||p.cat1||'';
-    existing.cat2=existing.cat2||p.cat2||'';
-  } else {
-    cart.push({id:prodKey(p),cod:p.cod||'',nom:p.nom,cat1:p.cat1||'',cat2:p.cat2||'',precio:p.precio,unidad:unitLabel(p.unidad),stock:p.stock,qty:1,desc:0});
-  }
+  addProductToCart(p, 1, 0);
   updateCartDot();
   closeModal();
   renderCart();
@@ -3022,14 +3067,16 @@ function docTotals(items=cart) {
 function currentCartObs() {
   const el=document.getElementById('cart-obs');
   if (el && pickupObservationLocked(el)) protectPickupObservation(el);
+  if (el) enforceObservationLimit(el);
   return el?.value || '';
 }
 function setCurrentCartObs(v='') {
   const el=document.getElementById('cart-obs');
   if(el) {
-    el.value=v||'';
+    el.value=String(v||'').slice(0, OBS_MAX_CHARS);
     setPickupObservationLock(hasPickupFreightSelected(el.value));
     protectPickupObservation(el);
+    enforceObservationLimit(el);
   }
 }
 function paymentConditions() {
@@ -3272,6 +3319,15 @@ function buildDocumentHtml(order) {
       <td style="${rowLastCellStyle}text-align:right;white-space:nowrap;"><div style="font-size:10px;color:#64748b;font-weight:normal;">${escEmailHtml(moneyPlain(lineNet))}</div><div style="font-weight:bold;color:#111827;">c/IVA ${escEmailHtml(moneyPlain(lineGross))}</div></td>
     </tr>`;
   }).join('');
+  function estimateEmailTextLines(value='', charsPerLine=42) {
+    return String(value||'').split(/\r?\n/).reduce((sum, line) => {
+      const text = line.trim();
+      return sum + Math.max(1, Math.ceil(text.length / charsPerLine));
+    }, 0);
+  }
+  const emailObsLines = estimateEmailTextLines(order.obs || 'ninguna');
+  const emailSummaryHeight = Math.max(150, Math.ceil(58 + emailObsLines * 18));
+  const emailTotalRowHeight = Math.ceil(emailSummaryHeight / 5);
   const totalsRows = [
     ['Subtotal Neto', moneyPlain(totals.gross)],
     ['Descuentos', totals.discounts ? '-'+moneyPlain(totals.discounts) : moneyPlain(0)],
@@ -3279,8 +3335,8 @@ function buildDocumentHtml(order) {
     ['IVA (19%)', moneyPlain(totals.iva)],
     ['TOTAL', moneyPlain(totals.total)]
   ].map(([k,v],i)=>`<tr>
-    <td style="padding:8px 8px;font-family:Arial,Helvetica,sans-serif;font-size:${i===4?'16':'12'}px;font-weight:bold;text-align:right;color:#061a53;border-right:1px solid #d9deea;border-bottom:${i===4?'0':'1px solid #d9deea'};white-space:nowrap;">${escEmailHtml(k)}</td>
-    <td style="padding:8px 6px;font-family:Arial,Helvetica,sans-serif;font-size:${i===4?'16':'12'}px;font-weight:bold;text-align:right;color:#061a53;border-bottom:${i===4?'0':'1px solid #d9deea'};white-space:nowrap;">${escEmailHtml(v)}</td>
+    <td height="${emailTotalRowHeight}" style="height:${emailTotalRowHeight}px;padding:0 8px;font-family:Arial,Helvetica,sans-serif;font-size:${i===4?'16':'12'}px;font-weight:bold;text-align:right;color:#061a53;border-right:1px solid #d9deea;border-bottom:${i===4?'0':'1px solid #d9deea'};white-space:nowrap;vertical-align:middle;">${escEmailHtml(k)}</td>
+    <td height="${emailTotalRowHeight}" style="height:${emailTotalRowHeight}px;padding:0 6px;font-family:Arial,Helvetica,sans-serif;font-size:${i===4?'16':'12'}px;font-weight:bold;text-align:right;color:#061a53;border-bottom:${i===4?'0':'1px solid #d9deea'};white-space:nowrap;vertical-align:middle;">${escEmailHtml(v)}</td>
   </tr>`).join('');
   const mainMessageHtml = escEmailHtml(documentCustomerMainText(order, 'email')).replace(/\r?\n/g,'<br>');
   const mobileHintHtml = 'Para una mejor visualización del detalle del documento en dispositivos móviles, recomendamos girar la pantalla en posición horizontal.';
@@ -3344,14 +3400,13 @@ function buildDocumentHtml(order) {
               </table>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;table-layout:fixed;">
                 <tr>
-                  <td width="61%" style="width:61%;vertical-align:top;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.38;border:1px solid #061a53;padding:10px;">
+                  <td width="61%" height="${emailSummaryHeight}" style="width:61%;height:${emailSummaryHeight}px;vertical-align:top;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.38;border:1px solid #061a53;padding:10px;">
                       <strong style="color:#061a53;">Condición de pago</strong><br>${escEmailHtml(order.paymentCondition||'')}<br><br>
-                      <strong style="color:#061a53;">Observaciones</strong><br>${escEmailHtml(order.obs||'ninguna')}<br><br>
-                      <strong style="color:#061a53;">Validez hasta:</strong> ${escEmailHtml(order.validUntil||validUntilText(new Date(), order.validityDays))}
+                      <strong style="color:#061a53;">Observaciones</strong><br>${escEmailHtml(order.obs||'ninguna')}
                   </td>
                   <td width="2%" style="width:2%;"></td>
-                  <td width="37%" style="width:37%;vertical-align:top;">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
+                  <td width="37%" height="${emailSummaryHeight}" style="width:37%;height:${emailSummaryHeight}px;vertical-align:top;">
+                    <table width="100%" height="${emailSummaryHeight}" cellpadding="0" cellspacing="0" border="0" style="height:${emailSummaryHeight}px;border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
                       <col style="width:49%;"><col style="width:51%;">
                       ${totalsRows}
                     </table>
@@ -3631,13 +3686,13 @@ async function buildOrderPdfRecord(order) {
     pdf.setFillColor(255,255,255); pdf.setDrawColor(80,80,80); pdfRoundedRect(pdf, obsX, blockY, obsW, obsH, totalRadius, 'FD');
     pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(...black); pdf.text('Condicion de pago:', obsX+3, blockY+5);
     pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(...dark);
-    const payLines = pdfFitLines(pdf, order.paymentCondition || 'Sin condicion seleccionada', obsW-6, 2);
-    pdf.text(payLines, obsX+3, blockY+9.2);
-    const obsTitleY = blockY + 17.2;
+    const payLines = pdfFitLines(pdf, order.paymentCondition || 'Sin condicion seleccionada', obsW-6, 1);
+    pdf.text(payLines, obsX+3, blockY+8.8);
+    const obsTitleY = blockY + 13.2;
     pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(...black); pdf.text('Observaciones:', obsX+3, obsTitleY);
     pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(...dark);
-    const obsLines = pdfFitLines(pdf, order.obs || 'ninguna', obsW-6, 2);
-    pdf.text(obsLines, obsX+3, obsTitleY+4.2);
+    const obsLines = pdfFitLines(pdf, order.obs || 'ninguna', obsW-6, 4);
+    pdf.text(obsLines, obsX+3, obsTitleY+4);
 
     pdf.setFillColor(255,255,255); pdf.setDrawColor(80,80,80); pdfRoundedRect(pdf, totalX, blockY, totalW, totalH, totalRadius, 'FD');
     pdf.setDrawColor(...line); pdf.line(totalDividerX, blockY, totalDividerX, blockY+totalH);
