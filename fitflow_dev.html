@@ -5554,7 +5554,7 @@ async function confirmRegroupCatalog() {
 
 async function syncProductsToFirebase(list, meta) {
   if (!window._fbDB) throw new Error('Firebase no disponible');
-  const { setDoc, getDoc, deleteDoc, doc } = window._fbSDK;
+  const { setDoc, getDoc, deleteDoc, getDocs, collection, doc } = window._fbSDK;
   const db = window._fbDB;
   const startedAt = Date.now();
   let stage = 'inicio';
@@ -5629,12 +5629,25 @@ async function syncProductsToFirebase(list, meta) {
     throw lastError || new Error(`Paquete ${i+1}/${chunks} sin respuesta`);
   }
   async function deleteOldProductChunks() {
-    if (!deleteDoc || previousChunks <= chunks) return 0;
+    if (!deleteDoc) return 0;
     let deleted = 0;
-    for (let i=chunks; i<previousChunks; i++) {
-      stage = `limpieza ${i+1}/${previousChunks}`;
-      setLoadingText(`Limpiando paquetes antiguos ${i+1}/${previousChunks}...`);
-      await withTimeout(deleteDoc(doc(db,'products_chunks_dev',String(i).padStart(4,'0'))), 20000, `Limpieza paquete ${i+1}/${previousChunks}`);
+    const ids = new Set();
+    for (let i=chunks; i<previousChunks; i++) ids.add(String(i).padStart(4,'0'));
+    try {
+      const snap = await withTimeout(getDocs(collection(db,'products_chunks_dev')), 30000, 'Lectura paquetes existentes');
+      snap.docs.forEach(d => {
+        const n = Number(d.id);
+        if (Number.isInteger(n) && n >= chunks) ids.add(d.id);
+      });
+    } catch(e) {
+      console.log('No se pudo listar paquetes antiguos:', e?.message || e);
+    }
+    const orderedIds = [...ids].sort();
+    for (let i=0; i<orderedIds.length; i++) {
+      const id = orderedIds[i];
+      stage = `limpieza ${i+1}/${orderedIds.length}`;
+      setLoadingText(`Limpiando paquetes antiguos ${i+1}/${orderedIds.length}...`);
+      await withTimeout(deleteDoc(doc(db,'products_chunks_dev',id)), 20000, `Limpieza paquete ${id}`);
       deleted++;
     }
     return deleted;
