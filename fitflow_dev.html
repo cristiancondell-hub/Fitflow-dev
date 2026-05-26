@@ -960,13 +960,23 @@ async function deleteBigCache(key) {
 }
 
 async function clearBigCacheFamily(key) {
-  const meta = await getBigCache(key+'_chunk_meta');
-  if (meta?.chunks) {
-    for (let i=0; i<meta.chunks; i++) await deleteBigCache(`${key}_chunk_${i}`);
-  }
-  await deleteBigCache(key+'_chunk_meta');
-  await deleteBigCache(key+'_record');
-  await deleteBigCache(key);
+  try {
+    const db = await openBigCache();
+    if (!db) return false;
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction('kv', 'readwrite');
+      const store = tx.objectStore('kv');
+      const req = store.getAllKeys();
+      req.onsuccess = () => {
+        (req.result || [])
+          .filter(k => String(k) === key || String(k).startsWith(key+'_'))
+          .forEach(k => store.delete(k));
+      };
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch(e) { return false; }
 }
 
 async function getBigChunkCacheInfo(key) {
@@ -1481,6 +1491,13 @@ async function loadFromFirebase(opts={}) {
           hideLoading();
         }
         if (remoteProds?.length) {
+          if (remoteProds.length !== Number(meta.count||0)) {
+            const reason = `descarga Firebase ${remoteProds.length} distinta de resumen ${meta.count}`;
+            console.warn('Catálogo no guardado:', reason);
+            LS._setLocal('prods_cache_reason', {reason, checkedAt:new Date().toISOString(), localMethod:'firebase_chunks', localCount:remoteProds.length, remoteCount:meta.count||0, remoteVersion:meta.version||''});
+            toast('Catálogo no coincide con resumen Firebase','err','long');
+            return;
+          }
           prods = remoteProds;
           LS_MEMORY.prods = cloneStorageValue(prods);
           LS_MEMORY.prods_version = meta.version||'firebase';
