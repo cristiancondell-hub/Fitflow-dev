@@ -544,7 +544,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             </select>
           </div>
         </div>
-        <input class="cart-obs" id="cart-obs" type="text" maxlength="300" placeholder="Obs:" oninput="protectPickupObservation(this); enforceObservationLimit(this)" onkeydown="guardPickupObservationKey(event,this)" onclick="keepPickupCursorEditable(this)" onfocus="keepPickupCursorEditable(this)">
+        <input class="cart-obs" id="cart-obs" type="text" maxlength="300" placeholder="Obs:" oninput="protectPickupObservation(this); enforceObservationLimit(this); saveCurrentCartDraft()" onkeydown="guardPickupObservationKey(event,this)" onclick="keepPickupCursorEditable(this)" onfocus="keepPickupCursorEditable(this)">
         <div class="cart-action-btns">
           <button class="btn-delete" onclick="openDeletePedidoModal()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
@@ -781,6 +781,8 @@ const DEFAULT_TEST_CLIENT_NAMES = [
 ];
 const TEST_PHONE_CLEANUP_DEFAULTS = ['+56996491145','96491145','996491145','56996491145'];
 const FITFLOW_SESSION_KEY = 'fitflow_auth_session';
+const FITFLOW_CART_DRAFT_KEY = 'cart_draft';
+const FITFLOW_ACTIVE_TAB_KEY = 'active_tab';
 const FITFLOW_AUTH_RECHECK_MS = 15 * 60 * 1000;
 const FITFLOW_AUTH_OFFLINE_MAX_MS = 24 * 60 * 60 * 1000;
 const LOGO_TYPES = {
@@ -2039,9 +2041,10 @@ function enterWithVendor(v, idx, authInfo={}) {
   updateClientLogUI();
   updateClientMetaUI();
   renderVendorList();
+  restoreCurrentCartDraft();
   updateCartDot();
   updateHistDot();
-  goTab('buscar');
+  goTab(storedActiveTab(), {save:false});
   syncAfterLogin();
 }
 
@@ -2073,9 +2076,10 @@ function readFitFlowSession() {
   catch(e) { return null; }
 }
 function saveFitFlowSession(v={}, idx=0, authInfo={}) {
-  const provider = authInfo.provider || '';
+  const provider = authInfo.provider || 'pin';
   const email = normalizeEmail(authInfo.email || v.email || '');
-  if (!['google','email'].includes(provider) || !email) return;
+  if (!['google','email','pin'].includes(provider)) return;
+  if (['google','email'].includes(provider) && !email) return;
   const now = Date.now();
   localStorage.setItem('ff2_'+FITFLOW_SESSION_KEY, JSON.stringify({
     email,
@@ -2129,6 +2133,14 @@ async function restoreFitFlowAuthSession(authUser=null, opts={}) {
   const session = readFitFlowSession();
   const email = normalizeEmail(authUser?.email || session?.email || '');
   const provider = session?.provider || (authUser ? 'google' : '');
+  if (provider === 'pin') {
+    const vendors = (LS.get('vendors')||DEFAULT_VENDORS).map(normalizeVendor);
+    const idx = Number(session?.vendorIdx);
+    const vendor = Number.isInteger(idx) && vendors[idx] ? vendors[idx] : vendors.find(v => v.name === session?.vendorName);
+    if (!vendor) return false;
+    enterWithVendor(vendor, Number.isInteger(idx) ? idx : vendors.indexOf(vendor), {provider:'pin'});
+    return true;
+  }
   if (!email || !['google','email'].includes(provider)) return false;
   const result = await validateFitFlowSessionEmail(email, {provider});
   if (!result.ok) {
@@ -2382,8 +2394,21 @@ function showUserMenu() {
 }
 
 // ══ TABS ════════════════════════════════════════
-function goTab(id) {
+function validAppTab(id) {
+  return ['buscar','cats','carrito','historial','admin'].includes(id);
+}
+function storedActiveTab() {
+  const id = LS.get(FITFLOW_ACTIVE_TAB_KEY);
+  if (!validAppTab(id)) return 'buscar';
+  if (id === 'admin' && !isAdminUser()) return 'buscar';
+  return id;
+}
+function saveActiveTab(id) {
+  if (validAppTab(id)) LS._setLocal(FITFLOW_ACTIVE_TAB_KEY, id);
+}
+function goTab(id, opts={}) {
   if (id === 'admin' && !requireAdminAccess()) return;
+  if (!validAppTab(id)) id = 'buscar';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('act'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('act'));
   const tabEl  = document.getElementById('tab-'+id);
@@ -2393,6 +2418,7 @@ function goTab(id) {
   if (id==='carrito')   renderCart();
   if (id==='cats')      renderCatL1();
   if (id==='historial') renderHistorial();
+  if (opts.save !== false) saveActiveTab(id);
 }
 
 // ══ BÚSQUEDA ════════════════════════════════════
@@ -2778,6 +2804,7 @@ function addProductToCart(p, qty=1, desc=0) {
   } else {
     cart.push({id:prodKey(p),cod:p.cod||'',nom:p.nom,cat1:p.cat1||'',cat2:p.cat2||'',precio:p.precio,unidad:unitLabel(p.unidad),stock:p.stock,qty,desc});
   }
+  saveCurrentCartDraft();
   return existing;
 }
 function openReplacePickupWithFreightConfirm(key, qty=1, desc=0) {
@@ -2856,6 +2883,53 @@ function currentVendorForDiscounts() {
   const vendors = (LS.get('vendors') || DEFAULT_VENDORS).map(normalizeVendor);
   if (Number.isInteger(currentUser?.idx) && vendors[currentUser.idx]) return vendors[currentUser.idx];
   return normalizeVendor(currentUser || {}, Number.isInteger(currentUser?.idx) ? currentUser.idx : 0);
+}
+function cartDraftOwner() {
+  return currentUser?.authEmail || currentUser?.email || currentUser?.name || '';
+}
+function currentCartDraft() {
+  return {
+    version:1,
+    owner:cartDraftOwner(),
+    activeOrderId,
+    selectedClient:selectedClient ? {...selectedClient} : null,
+    cart:(cart||[]).map(x=>({...x})),
+    paymentCondition:currentPaymentCondition || '',
+    validityDays:normalizeValidityDays(currentValidityDays || 7),
+    obs:currentCartObs(),
+    updatedAt:new Date().toISOString(),
+    updatedAtMs:Date.now()
+  };
+}
+function hasCurrentCartDraftContent(draft=currentCartDraft()) {
+  return !!(draft.selectedClient || draft.cart?.length || draft.paymentCondition || draft.obs || draft.activeOrderId);
+}
+function saveCurrentCartDraft() {
+  if (!currentUser) return false;
+  const draft = currentCartDraft();
+  if (!hasCurrentCartDraftContent(draft)) {
+    LS._setLocal(FITFLOW_CART_DRAFT_KEY, null);
+    return true;
+  }
+  return LS._setLocal(FITFLOW_CART_DRAFT_KEY, draft);
+}
+function clearCurrentCartDraft() {
+  LS._setLocal(FITFLOW_CART_DRAFT_KEY, null);
+}
+function restoreCurrentCartDraft() {
+  const draft = LS.get(FITFLOW_CART_DRAFT_KEY);
+  if (!draft || !hasCurrentCartDraftContent(draft)) return false;
+  const owner = String(draft.owner || '');
+  if (owner && cartDraftOwner() && owner !== cartDraftOwner()) return false;
+  activeOrderId = draft.activeOrderId || null;
+  selectedClient = draft.selectedClient ? {...draft.selectedClient} : null;
+  cart = hydrateItemsUnits(Array.isArray(draft.cart) ? draft.cart.map(x=>({...x})) : []);
+  currentPaymentCondition = String(draft.paymentCondition || '');
+  currentValidityDays = normalizeValidityDays(draft.validityDays || 7);
+  setCurrentCartObs(draft.obs || '');
+  updateCartDot();
+  renderCart();
+  return true;
 }
 function itemSourceProduct(item={}) {
   if (item.id || item.cod || item.nom) {
@@ -2969,10 +3043,17 @@ function keepPickupCursorEditable(el=document.getElementById('cart-obs')) {
 function selectPickupFreight() {
   setPickupObservationLock(true);
   setCurrentCartObs(applyPickupObservation(currentCartObs()));
+  saveCurrentCartDraft();
   closeModal();
   goTab('carrito');
   keepPickupCursorEditable();
   toast('Retiro en Local agregado a observaciones','ok');
+}
+function persistForegroundState() {
+  saveCurrentCartDraft();
+  const activePane = document.querySelector('.pane.act');
+  const id = activePane?.id?.replace(/^pane-/,'');
+  if (validAppTab(id)) saveActiveTab(id);
 }
 function freightSourceForCartItem(item={}) {
   if (isFreightProduct(item)) return item;
@@ -3427,7 +3508,7 @@ function syncClientContactReview(review) {
   }, {merge:true}).catch(e => console.log('Client contact review sync error:', e?.message || e));
 }
 
-function cartQty(i,d)  { cart[i].qty=Math.max(1,(parseInt(cart[i].qty)||1)+d); updateCartDot(); renderCart(); }
+function cartQty(i,d)  { cart[i].qty=Math.max(1,(parseInt(cart[i].qty)||1)+d); updateCartDot(); renderCart(); saveCurrentCartDraft(); }
 function selectQtyInput(el) { setTimeout(()=>el?.select?.(),0); }
 function itemUnitPrice(item) { return discountedGross(item.precio, item.desc); }
 function itemLineTotal(item) { return itemUnitPrice(item)*(item.qty||0); }
@@ -3449,13 +3530,15 @@ function cartQtySet(i,el) {
   cart[i].qty=Math.max(1,parseInt(el?.value)||1);
   updateCartDot();
   updateCartLineUI(i, el);
+  saveCurrentCartDraft();
 }
 function cartDesc(i,el) {
   cart[i].desc=clampDiscountForItem(cart[i], el?.value);
   if (el && String(el.value||'') !== String(cart[i].desc || '')) el.value = cart[i].desc || '';
   updateCartLineUI(i, el);
+  saveCurrentCartDraft();
 }
-function cartDel(i)    { cart.splice(i,1); updateCartDot(); renderCart(); }
+function cartDel(i)    { cart.splice(i,1); updateCartDot(); renderCart(); saveCurrentCartDraft(); }
 function cartTotal()   { return cart.reduce((s,x)=>s+itemLineTotal(x),0); }
 function cartGrossBeforeDiscount(items=cart) { return items.reduce((s,x)=>s+Math.round(x.precio||0)*(x.qty||0),0); }
 function cartGrossTotal(items=cart) { return items.reduce((s,x)=>s+itemLineTotal(x),0); }
@@ -3511,7 +3594,7 @@ function renderPaymentConditionSelect() {
   el.innerHTML = opts.map(v=>v ? `<option value="${escEmailHtml(v.name)}">${escEmailHtml(v.name)}</option>` : `<option value="">Seleccionar Cond. Pago</option>`).join('');
   el.value = currentPaymentCondition || '';
 }
-function setCurrentPaymentCondition(v='') { currentPaymentCondition = String(v||'').trim(); }
+function setCurrentPaymentCondition(v='') { currentPaymentCondition = String(v||'').trim(); if (currentUser) saveCurrentCartDraft(); }
 const VALIDITY_DAY_OPTIONS = [7, 15, 30];
 function normalizeValidityDays(v) {
   const n = parseInt(v, 10);
@@ -3522,7 +3605,7 @@ function renderValidityDaysSelect() {
   if(!el) return;
   el.value = String(normalizeValidityDays(currentValidityDays));
 }
-function setCurrentValidityDays(v=7) { currentValidityDays = normalizeValidityDays(v); }
+function setCurrentValidityDays(v=7) { currentValidityDays = normalizeValidityDays(v); if (currentUser) saveCurrentCartDraft(); }
 function updatePaymentConditionsUI() {
   const list = paymentConditions();
   const el = document.getElementById('adm-payment-val');
@@ -4649,6 +4732,7 @@ function persistCurrentPedido() {
 
 function clearCurrentPedido() {
   cart=[]; selectedClient=null; activeOrderId=null; currentPaymentCondition=''; currentValidityDays=7; setCurrentCartObs('');
+  clearCurrentCartDraft();
   updateCartDot(); renderCart();
 }
 
@@ -5014,6 +5098,7 @@ function loadPedidoIntoCart(source, mode) {
   setCurrentCartObs(source.obs||'');
   updateCartDot();
   renderCart();
+  saveCurrentCartDraft();
   goTab('carrito');
   toast(adjustedDiscounts ? 'Documento cargado con descuentos ajustados al maximo permitido' : (mode === 'resume' ? 'Documento guardado retomado ✓' : 'Documento copiado como pedido nuevo ✓'),'ok');
 }
@@ -5297,7 +5382,7 @@ function selectClient(c) {
   }
   selectedClient=c;
   document.getElementById('cli-modal-overlay').classList.add('hidden');
-  updateCartCliBar(); toast(c.nombre+' seleccionado ✓','ok');
+  updateCartCliBar(); saveCurrentCartDraft(); toast(c.nombre+' seleccionado ✓','ok');
 }
 function showNewCliForm() { document.getElementById('new-cli-form').classList.remove('hidden'); }
 function hideNewCliForm() { document.getElementById('new-cli-form').classList.add('hidden'); }
@@ -6820,11 +6905,26 @@ setInterval(() => {
   revalidateCurrentSession();
 }, FITFLOW_AUTH_RECHECK_MS);
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) revalidateCurrentSession();
+  if (document.hidden) {
+    persistForegroundState();
+  } else {
+    revalidateCurrentSession();
+    if (!cart.length) restoreCurrentCartDraft();
+    const active = storedActiveTab();
+    const current = document.querySelector('.pane.act')?.id?.replace(/^pane-/,'');
+    if (active && active !== current) goTab(active, {save:false});
+  }
 });
 window.addEventListener('focus', () => {
   revalidateCurrentSession();
+  if (!cart.length) restoreCurrentCartDraft();
+  const active = storedActiveTab();
+  const current = document.querySelector('.pane.act')?.id?.replace(/^pane-/,'');
+  if (active && active !== current) goTab(active, {save:false});
 });
+window.addEventListener('pagehide', () => { persistForegroundState(); });
+window.addEventListener('beforeunload', () => { persistForegroundState(); });
+restoreFitFlowAuthSession(null, {silent:true});
 
 async function registerFitFlowOffline() {
   if (!('serviceWorker' in navigator)) return;
