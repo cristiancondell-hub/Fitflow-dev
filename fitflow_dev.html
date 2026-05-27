@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#06245f">
-<title>FitFlow · Centro Fitting</title>
+<title>FITFLOW - Sistema de Pedidos de Venta</title>
 <link rel="manifest" href="fitflow_manifest_dev.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -38,6 +38,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
   .hist-list{padding-left:18px;padding-right:18px;}
   .hist-card-pay{max-width:none;}
   .modal{max-width:640px;border-radius:22px;padding-left:24px;padding-right:24px;}
+  .vis-search-overlay{max-width:640px;border-radius:22px 22px 0 0;padding-left:24px;padding-right:24px;}
   .login-box{max-width:400px;}
 }
 @media (min-width:1000px){
@@ -49,6 +50,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
   .cart-cli-bar{margin-left:24px;margin-right:24px;}
   .cart-payment-grid{grid-template-columns:minmax(0,1fr) 150px;}
   .modal{max-width:720px;}
+  .vis-search-overlay{max-width:720px;}
 }
 
 /* ── HEADER ── */
@@ -312,7 +314,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .login-logo-wrap{text-align:center;margin-bottom:36px;}
 .login-logo-img{width:min(220px,62vw);max-height:190px;height:auto;object-fit:contain;border-radius:10px;}
 .login-logo-text{font-family:'Barlow Condensed',sans-serif;font-size:40px;font-weight:800;color:#fff;letter-spacing:2px;line-height:1;}
-.login-logo-sub{font-size:11px;color:rgba(255,255,255,.45);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:6px;}
+.login-logo-sub{font-size:14px;color:rgba(255,255,255,.62);font-weight:700;letter-spacing:.6px;text-transform:none;margin:6px auto 0;line-height:1.25;max-width:360px;}
 .login-box{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);border-radius:18px;padding:22px;width:100%;max-width:340px;}
 .login-field-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.5);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
 #login-user-sel{width:100%;padding:11px 13px;border-radius:var(--r);border:none;background:rgba(255,255,255,.12);color:#fff;font-size:15px;font-family:'Barlow',sans-serif;font-weight:600;outline:none;margin-bottom:18px;appearance:none;-webkit-appearance:none;}
@@ -334,7 +336,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 /* ── MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:200;}
 .modal-overlay.hidden{display:none;}
-.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:88dvh;overflow-y:auto;}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:480px;max-height:88dvh;overflow-y:auto;position:relative;}
 .modal-title{font-size:17px;font-weight:800;color:var(--text);margin-bottom:4px;}
 .modal-sub{font-size:13px;color:var(--text2);margin-bottom:14px;}
 .modal-prod-name{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:12px;padding:9px 11px;background:var(--bg);border-radius:var(--rs);}
@@ -370,6 +372,16 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .modal-inp{width:100%;padding:10px 12px;border-radius:var(--rs);border:2px solid var(--border);font-size:14px;font-family:'Barlow',sans-serif;outline:none;margin-bottom:14px;}
 .modal-inp:focus{border-color:var(--navy2);}
 .modal-lbl{font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:4px;}
+.vis-switch-row{display:flex;align-items:center;gap:10px;margin-top:10px;cursor:pointer;}
+.vis-switch-input{position:absolute;opacity:0;pointer-events:none;}
+.vis-switch-track{width:46px;height:26px;border-radius:999px;background:var(--border);position:relative;flex:0 0 46px;transition:background .16s ease;}
+.vis-switch-track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(13,43,110,.25);transition:transform .16s ease;}
+.vis-switch-input:checked + .vis-switch-track{background:var(--green);}
+.vis-switch-input:checked + .vis-switch-track::after{transform:translateX(20px);}
+.vis-switch-text{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.vis-switch-title{font-size:12px;font-weight:900;color:var(--text);text-transform:uppercase;letter-spacing:.45px;}
+.vis-switch-note{font-size:12px;font-weight:600;color:var(--text2);line-height:1.2;}
+.vis-search-overlay{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:8;background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:480px;max-height:88dvh;overflow-y:auto;box-shadow:0 -8px 26px rgba(13,43,110,.18);}
 .modal-detail-item{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;}
 .modal-detail-item:last-child{border-bottom:none;}
 .modal.detail-modal{padding:0;display:flex;flex-direction:column;overflow:hidden;}
@@ -423,7 +435,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
     <div id="login-logo-placeholder">
       <div class="login-logo-text">CENTRO<br>FITTING</div>
     </div>
-    <div class="login-logo-sub">Sistema de Pedidos</div>
+    <div class="login-logo-sub">FITFLOW - Sistema de Pedidos de Venta</div>
     <div style="margin-top:8px;background:rgba(249,115,22,.15);border:1px solid rgba(249,115,22,.4);border-radius:100px;padding:4px 16px;display:inline-block;font-size:11px;font-weight:800;color:#f97316;letter-spacing:2px;">VERSIÓN DE PRUEBA</div>
   </div>
   <div class="login-box">
@@ -628,6 +640,10 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
             <div class="admin-item-icon" style="background:#fff7ed"><svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2"><path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/><circle cx="8" cy="5" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg></div>
             <div><div class="admin-item-label">Visibilidad de productos</div><div class="admin-item-sub" id="adm-visibility-val">Reglas sin aplicar a publicación</div></div>
           </div>
+          <div class="admin-item" data-admin-area="supra" onclick="adminTestClients()">
+            <div class="admin-item-icon" style="background:#e8f5e9"><svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M16 11h6"/></svg></div>
+            <div><div class="admin-item-label">Clientes de prueba</div><div class="admin-item-sub" id="adm-test-clients-val">Solo Supra</div></div>
+          </div>
           <div class="admin-item" onclick="document.getElementById('cli-upload').click()">
             <div class="admin-item-icon" style="background:#fff3e0"><svg viewBox="0 0 24 24" fill="none" stroke="#e65100" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div><div class="admin-item-label">Actualizar clientes</div><div class="admin-item-sub" id="adm-cli-count">—</div><div class="admin-item-sub" id="adm-cli-updated">Última actualización: —</div></div>
@@ -744,19 +760,26 @@ let activeOrderId = null;
 let firebaseSyncStarted = false;
 let lastAuthRecheckAt = 0;
 const DEFAULT_VENDORS = [
-  {name:'Administrador',pin:'0000',isAdmin:true,role:'supra_admin',email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0},
-  {name:'Vendedor 1',pin:'1111',isAdmin:false,role:'vendedor',email:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0}
+  {name:'Administrador',pin:'0000',isAdmin:true,role:'supra_admin',email:'',phone:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0},
+  {name:'Vendedor 1',pin:'1111',isAdmin:false,role:'vendedor',email:'',phone:'',codigo:'',maxProductDiscount:0,maxServiceDiscount:0}
 ];
 const DEFAULT_PAYMENT_CONDITIONS = ['Contado','Transferencia','Credito 30 dias'];
 const DEFAULT_PRODUCT_VISIBILITY_RULES = {
   enabled:false,
   publishOnlyVisible:true,
   invalidPrice:{enabled:true,minPrice:1},
-  stockDate:{enabled:false,months:12,invalidDateAction:'review'},
+  stockDate:{enabled:false,months:12,cutoffDate:'',invalidDateAction:'review'},
   services:{excludeFromStockDate:true},
   duplicates:{autoResolve:true},
   exceptions:{alwaysShow:'',alwaysHide:''}
 };
+const DEFAULT_TEST_CLIENT_NAMES = [
+  'Cliente Prueba 1',
+  'Inversiones Prueba 1',
+  'Constructora Prueba 1',
+  'Agricola Prueba 1'
+];
+const TEST_PHONE_CLEANUP_DEFAULTS = ['+56996491145','96491145','996491145','56996491145'];
 const FITFLOW_SESSION_KEY = 'fitflow_auth_session';
 const FITFLOW_AUTH_RECHECK_MS = 15 * 60 * 1000;
 const FITFLOW_AUTH_OFFLINE_MAX_MS = 24 * 60 * 60 * 1000;
@@ -1220,6 +1243,49 @@ function mergeDeletedOrderTombstones(local=[], remote=[]) {
   return [...map.values()].sort((a,b)=>Number(b.deletedAtMs||0)-Number(a.deletedAtMs||0));
 }
 
+function deletedOrderSyncSignatures() {
+  const map = LS.get('deleted_order_sync_signatures');
+  return map && typeof map === 'object' ? map : {};
+}
+function deletedOrderTombstoneSignature(tombstone) {
+  if (!tombstoneKey(tombstone)) return '';
+  return JSON.stringify({
+    key:tombstoneKey(tombstone),
+    id:tombstone?.id || null,
+    documentNumber:tombstone?.documentNumber || '',
+    estado:tombstone?.estado || '',
+    cliente:tombstone?.cliente || '',
+    vendedor:tombstone?.vendedor || '',
+    deletedBy:tombstone?.deletedBy || '',
+    deletedAt:tombstone?.deletedAt || '',
+    deletedAtMs:Number(tombstone?.deletedAtMs || 0)
+  });
+}
+function markDeletedOrderTombstoneSynced(tombstone) {
+  const key = tombstoneKey(tombstone);
+  const signature = deletedOrderTombstoneSignature(tombstone);
+  if (!key || !signature) return;
+  const signatures = deletedOrderSyncSignatures();
+  signatures[key] = signature;
+  LS._setLocal('deleted_order_sync_signatures', signatures);
+}
+function markDeletedOrderTombstonesSynced(tombstones=[]) {
+  if (!Array.isArray(tombstones) || !tombstones.length) return;
+  const signatures = deletedOrderSyncSignatures();
+  tombstones.forEach(t => {
+    const key = tombstoneKey(t);
+    const signature = deletedOrderTombstoneSignature(t);
+    if (key && signature) signatures[key] = signature;
+  });
+  LS._setLocal('deleted_order_sync_signatures', signatures);
+}
+function shouldSyncDeletedOrderTombstone(tombstone) {
+  const key = tombstoneKey(tombstone);
+  const signature = deletedOrderTombstoneSignature(tombstone);
+  if (!key || !signature) return false;
+  return deletedOrderSyncSignatures()[key] !== signature;
+}
+
 function saveDeletedOrderTombstone(order) {
   const key = orderKey(order);
   const tombstone = {
@@ -1234,7 +1300,7 @@ function saveDeletedOrderTombstone(order) {
     deletedAtMs:Date.now()
   };
   const next = mergeDeletedOrderTombstones(deletedOrderTombstones(), [tombstone]);
-  LS.set('deleted_orders', next);
+  LS._setLocal('deleted_orders', next);
   syncDeletedOrderToFirebase(tombstone);
   return tombstone;
 }
@@ -1244,7 +1310,7 @@ function clearDeletedOrderKey(key) {
   if (!key) return;
   const current = deletedOrderTombstones();
   const next = current.filter(t => tombstoneKey(t) !== key);
-  if (next.length !== current.length) LS.set('deleted_orders', next);
+  if (next.length !== current.length) LS._setLocal('deleted_orders', next);
 }
 
 function mergeOrders(local=[], remote=[]) {
@@ -1318,9 +1384,12 @@ function syncOrdersToFirebase(orders=[], reason='syncOrdersToFirebase') {
 
 function syncDeletedOrderToFirebase(tombstone) {
   if (!window._fbDB || !tombstoneKey(tombstone)) return;
+  if (!shouldSyncDeletedOrderTombstone(tombstone)) return;
   try {
     const { setDoc, doc } = window._fbSDK;
-    setDoc(doc(window._fbDB,'orders_deleted_dev',tombstoneKey(tombstone)), tombstone, {merge:true}).catch(()=>{});
+    setDoc(doc(window._fbDB,'orders_deleted_dev',tombstoneKey(tombstone)), tombstone, {merge:true})
+      .then(()=>markDeletedOrderTombstoneSynced(tombstone))
+      .catch(()=>{});
   } catch(e) {}
 }
 
@@ -1498,6 +1567,7 @@ async function loadFromFirebase(opts={}) {
     } catch(e) {}
     if (remoteDeleted.length) {
       const mergedDeleted = mergeDeletedOrderTombstones(deletedOrderTombstones(), remoteDeleted);
+      markDeletedOrderTombstonesSynced(remoteDeleted);
       if (!LS._setLocal('deleted_orders', mergedDeleted)) {
         freeLocalStorageForCriticalData();
         LS._setLocal('deleted_orders', mergedDeleted);
@@ -1626,6 +1696,7 @@ async function loadFromFirebase(opts={}) {
       }
     }
     await loadManualContactsFromFirebase();
+    await loadTestClientsFromFirebase();
   } catch(e) { console.log('Firebase sync error:', e.message); }
   finally { if (blocking) hideLoading(); }
 }
@@ -1664,6 +1735,7 @@ function refreshAfterSync() {
   updateLogoMetaUI();
   updatePaymentConditionsUI();
   updateProductVisibilityRulesUI();
+  updateTestClientsUI();
   updateHistDot();
   if (document.getElementById('pane-historial')?.classList.contains('act')) renderHistorial();
   if (document.getElementById('pane-buscar')?.classList.contains('act')) {
@@ -1867,7 +1939,14 @@ function normalizeVendorRole(v={}, idx=0) {
 }
 function normalizeVendor(v={}, idx=0) {
   const role = normalizeVendorRole(v, idx);
-  return {...v, role, isAdmin:role === 'admin' || role === 'supra_admin'};
+  const phone = normalizePhone(v.phone || v.telefono || '');
+  return {...v, phone, role, isAdmin:role === 'admin' || role === 'supra_admin'};
+}
+function formatChilePhone(v='') {
+  const clean = normalizePhone(v);
+  const d = clean.replace(/\D/g,'');
+  if (d.length === 11 && d.startsWith('56')) return `+56 ${d.slice(2,3)} ${d.slice(3,7)} ${d.slice(7)}`;
+  return String(v||'').trim();
 }
 function currentUserRole() {
   return normalizeVendorRole(currentUser || {}, Number.isInteger(currentUser?.idx) ? currentUser.idx : 0);
@@ -3143,6 +3222,211 @@ function saveClientPhone(c, phone) {
   upsertManualClientContact(c, {phone:clean});
 }
 
+function isTestClient(c={}) {
+  return !!c?.isTestClient || String(c?.rut||c?.id||'').toUpperCase().startsWith('TEST-');
+}
+function testClients() {
+  const list = LS.get('test_clients');
+  return Array.isArray(list) ? list.map(normalizeTestClient).filter(c => c.id && c.nombre) : [];
+}
+function normalizeTestClient(c={}) {
+  const id = String(c.id || c.rut || '').trim().toUpperCase();
+  return {
+    id,
+    rut:id,
+    nombre:String(c.nombre||'Cliente Prueba').trim(),
+    direccion:String(c.direccion||'Avenida de Prueba 100').trim(),
+    comuna:String(c.comuna||'Comuna de Prueba').trim(),
+    ciudad:String(c.ciudad||'Ciudad de Prueba').trim(),
+    email:normalizeEmail(c.email||''),
+    phone:normalizePhone(c.phone||''),
+    isTestClient:true,
+    createdAt:c.createdAt || new Date().toISOString(),
+    createdBy:c.createdBy || currentUser?.name || 'Supra Admin',
+    updatedAt:c.updatedAt || c.createdAt || new Date().toISOString(),
+    updatedBy:c.updatedBy || currentUser?.name || 'Supra Admin'
+  };
+}
+function nextTestClientId(list=testClients()) {
+  const now = new Date();
+  const ymd = now.toISOString().slice(0,10).replace(/-/g,'');
+  const prefix = `TEST-${ymd}-`;
+  const nums = list
+    .map(c => String(c.id||''))
+    .filter(id => id.startsWith(prefix))
+    .map(id => parseInt(id.slice(prefix.length),10))
+    .filter(Number.isFinite);
+  return prefix + String((nums.length ? Math.max(...nums)+1 : 1)).padStart(3,'0');
+}
+function defaultTestClientDraft() {
+  const list = testClients();
+  const n = list.length + 1;
+  const name = DEFAULT_TEST_CLIENT_NAMES[(n-1) % DEFAULT_TEST_CLIENT_NAMES.length].replace(/\d+$/, String(n));
+  return normalizeTestClient({
+    id:nextTestClientId(list),
+    nombre:name,
+    direccion:`Avenida de Prueba ${n*100}`,
+    comuna:'Comuna de Prueba',
+    ciudad:'Ciudad de Prueba',
+    email:'',
+    phone:''
+  });
+}
+function updateTestClientsUI() {
+  const el = document.getElementById('adm-test-clients-val');
+  if (el) el.textContent = `${testClients().length} cliente${testClients().length===1?'':'s'} de prueba`;
+}
+async function loadTestClientsFromFirebase() {
+  if (!isSupraAdmin() || !window._fbDB || !window._fbSDK?.getDocs) return;
+  try {
+    const { getDocs, collection } = window._fbSDK;
+    const snap = await getDocs(collection(window._fbDB, 'test_clients_dev'));
+    const remote = snap.docs.map(d => normalizeTestClient({...d.data(), id:d.data()?.id || d.id})).filter(c => c.id);
+    if (remote.length) {
+      const byId = new Map(testClients().map(c => [c.id, c]));
+      remote.forEach(c => byId.set(c.id, c));
+      LS._setLocal('test_clients', [...byId.values()].sort((a,b)=>String(a.id).localeCompare(String(b.id))));
+      updateTestClientsUI();
+    }
+  } catch(e) {
+    console.log('Test clients sync error:', e?.message || e);
+  }
+}
+function syncTestClientToFirebase(client) {
+  if (!window._fbDB || !window._fbSDK?.setDoc || !client?.id) return;
+  const { setDoc, doc } = window._fbSDK;
+  setDoc(doc(window._fbDB, 'test_clients_dev', client.id), client, {merge:true})
+    .catch(e => console.log('Test client save error:', e?.message || e));
+}
+function deleteTestClientFromFirebase(id) {
+  if (!window._fbDB || !window._fbSDK?.deleteDoc || !id) return;
+  const { deleteDoc, doc } = window._fbSDK;
+  deleteDoc(doc(window._fbDB, 'test_clients_dev', id))
+    .catch(e => console.log('Test client delete error:', e?.message || e));
+}
+function clientSearchPool() {
+  const officialRuts = new Set(clients.map(c => normalizeRut(c.rut)).filter(Boolean));
+  const tempClients = (LS.get('temp_clients')||[]).filter(c => !officialRuts.has(normalizeRut(c.rut)));
+  return clients.concat(tempClients, isSupraAdmin() ? testClients() : []);
+}
+
+function phoneComparable(v='') {
+  const normalized = normalizePhone(v).replace(/\D/g,'');
+  const raw = String(v||'').replace(/\D/g,'');
+  return normalized || raw;
+}
+function samePhoneValue(a='', b='') {
+  const da = phoneComparable(a), db = phoneComparable(b);
+  if (!da || !db) return false;
+  return da === db || da.endsWith(db) || db.endsWith(da);
+}
+function phoneMatchesAny(value='', variants=TEST_PHONE_CLEANUP_DEFAULTS) {
+  return variants.some(v => samePhoneValue(value, v));
+}
+async function cleanManualContactPhones(variants=TEST_PHONE_CLEANUP_DEFAULTS) {
+  if (!requireSupraAccess()) return null;
+  const cleaned = [];
+  const contacts = manualContactsMap();
+  Object.entries(contacts).forEach(([key, contact]) => {
+    if (phoneMatchesAny(contact?.phone, variants)) {
+      cleaned.push({key, nombre:contact.nombre||'', rut:contact.rut||'', phone:contact.phone});
+      const next = {...contact};
+      delete next.phone;
+      next.cleanedTestPhoneAt = new Date().toISOString();
+      next.cleanedTestPhoneBy = currentUser?.name || 'Supra Admin';
+      if (next.email) contacts[key] = next;
+      else delete contacts[key];
+    }
+  });
+  LS._setLocal('client_manual_contacts', contacts);
+  const phoneMap = LS.get('client_phones') || {};
+  Object.keys(phoneMap).forEach(key => { if (phoneMatchesAny(phoneMap[key], variants)) delete phoneMap[key]; });
+  LS._setLocal('client_phones', phoneMap);
+  if (window._fbDB && window._fbSDK?.getDocs) {
+    const { getDocs, collection, setDoc, deleteDoc, doc } = window._fbSDK;
+    try {
+      const snap = await getDocs(collection(window._fbDB, 'client_manual_contacts_dev'));
+      for (const d of snap.docs) {
+        const data = d.data() || {};
+        if (!phoneMatchesAny(data.phone, variants)) continue;
+        const next = {...data};
+        delete next.phone;
+        next.cleanedTestPhoneAt = new Date().toISOString();
+        next.cleanedTestPhoneBy = currentUser?.name || 'Supra Admin';
+        if (next.email) await setDoc(doc(window._fbDB, 'client_manual_contacts_dev', d.id), next, {merge:false});
+        else await deleteDoc(doc(window._fbDB, 'client_manual_contacts_dev', d.id));
+        if (!cleaned.some(x => x.key === (data.key || d.id))) cleaned.push({key:data.key||d.id, nombre:data.nombre||'', rut:data.rut||'', phone:data.phone});
+      }
+    } catch(e) {
+      console.log('Test phone cleanup Firebase error:', e?.message || e);
+    }
+  }
+  window.fitflowLastTestPhoneCleanup = cleaned;
+  toast(`Limpieza teléfonos prueba: ${cleaned.length} contacto${cleaned.length===1?'':'s'}`,'ok','long');
+  console.table(cleaned);
+  return cleaned;
+}
+window.fitflowCleanTestPhones = cleanManualContactPhones;
+
+function buildClientContactReview(client={}, used={}, order={}) {
+  if (!client || isTestClient(client)) return null;
+  const officialEmail = normalizeEmail(client.email || '');
+  const officialPhone = normalizePhone(client.phone || client.celular || '');
+  const usedEmail = normalizeEmail(used.email || '');
+  const usedPhone = normalizePhone(used.phone || '');
+  const diffs = [];
+  if (usedEmail && officialEmail !== usedEmail) {
+    diffs.push({field:'email', master:officialEmail || '(sin correo maestro)', used:usedEmail});
+  }
+  if (usedPhone && officialPhone !== usedPhone) {
+    diffs.push({field:'phone', master:officialPhone || '(sin telefono maestro)', used:usedPhone});
+  }
+  if (!diffs.length) return null;
+  return {
+    key:clientKey(client),
+    rut:client.rut || '',
+    cliente:client.nombre || '',
+    vendedor:order.vendedor || currentUser?.name || '',
+    documentNumber:order.documentNumber || '',
+    documentId:order.id || '',
+    docType:order.docType || '',
+    emailMaestro:officialEmail,
+    emailUsado:usedEmail,
+    telefonoMaestro:officialPhone,
+    telefonoUsado:usedPhone,
+    fields:diffs.map(d => d.field),
+    diffs,
+    status:'pendiente',
+    updatedAt:new Date().toISOString(),
+    updatedBy:currentUser?.name || ''
+  };
+}
+function clientContactReviewText(review) {
+  if (!review?.diffs?.length) return '';
+  const rows = review.diffs.map(d => `${d.field === 'email' ? 'Correo' : 'Telefono'} maestro: ${d.master || '(vacio)'} / usado FitFlow: ${d.used || '(vacio)'}`);
+  return ['Revisar datos maestro Sisgen: datos usados en FitFlow difieren del maestro.', ...rows].join('\n');
+}
+function clientContactReviewHtml(review) {
+  const text = clientContactReviewText(review);
+  if (!text) return '';
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.4;color:#92400e;background:#fff7ed;border:1px solid #fed7aa;padding:10px;margin:0 0 14px 0;"><strong>Revisar maestro Sisgen</strong><br>${escEmailHtml(text).replace(/\r?\n/g,'<br>')}</div>`;
+}
+function syncClientContactReview(review) {
+  if (!review?.key || !window._fbDB || !window._fbSDK?.setDoc) return;
+  const signature = JSON.stringify({emailMaestro:review.emailMaestro||'', emailUsado:review.emailUsado||'', telefonoMaestro:review.telefonoMaestro||'', telefonoUsado:review.telefonoUsado||''});
+  const signatures = LS.get('client_contact_review_signatures') || {};
+  if (signatures[review.key] === signature) return;
+  signatures[review.key] = signature;
+  LS._setLocal('client_contact_review_signatures', signatures);
+  const { setDoc, doc } = window._fbSDK;
+  const id = encodeURIComponent(review.key);
+  setDoc(doc(window._fbDB, 'client_contact_review_dev', id), {
+    ...review,
+    count:1,
+    lastSeenAt:new Date().toISOString()
+  }, {merge:true}).catch(e => console.log('Client contact review sync error:', e?.message || e));
+}
+
 function cartQty(i,d)  { cart[i].qty=Math.max(1,(parseInt(cart[i].qty)||1)+d); updateCartDot(); renderCart(); }
 function selectQtyInput(el) { setTimeout(()=>el?.select?.(),0); }
 function itemUnitPrice(item) { return discountedGross(item.precio, item.desc); }
@@ -3311,12 +3595,15 @@ function orderValidityDisplay(order={}) {
   return order.validUntil ? `Validez hasta: ${order.validUntil}` : `Validez documento: ${normalizeValidityDays(order.validityDays||7)} dias`;
 }
 
-function buildDocumentBody(order) {
+function buildDocumentBody(order, opts={}) {
   const cfg = DOC_TYPES[order.docType] || DOC_TYPES.cotizacion;
   const company = getCompanyConfig();
   const items = order.items || [];
   const totals = docTotals(items);
+  const vendorContact = vendorContactText(order);
   const sep = '----------------------------------------';
+  const testNotice = order.isTestClient ? 'CLIENTE DE PRUEBA - No usar como documento real.' : '';
+  const reviewNotice = opts.central ? clientContactReviewText(order.clientContactReview) : '';
   const rows = items.map((x, idx) => {
     const unitGross = Math.round(x.precio||0);
     const unitNet = grossToNet(unitGross);
@@ -3335,6 +3622,8 @@ function buildDocumentBody(order) {
   return [
     documentCustomerMainText(order, 'email'),
     '',
+    reviewNotice,
+    reviewNotice ? '' : '',
     'Para una mejor visualización del detalle del documento en dispositivos móviles, recomendamos girar la pantalla en posición horizontal.',
     '',
     company.nombreComercial || '',
@@ -3346,15 +3635,17 @@ function buildDocumentBody(order) {
     sep,
     `${cfg.title}`,
     `N° documento: ${order.documentNumber}${order.documentOffline?' (provisorio sin conexión)':''}`,
+    testNotice,
     sep,
     '',
     `Fecha: ${order.fecha}`,
-    `Vendedor: ${order.vendedor}`,
+    `Vendedor: ${vendorContact || order.vendedor || ''}`,
     `Documento: ${cfg.label}`,
     `Condicion de pago: ${order.paymentCondition||''}`,
     '',
     'INFORMACIÓN DEL CLIENTE',
     sep,
+    testNotice,
     `Cliente: ${order.cliente?.nombre||''}`,
     `RUT: ${order.cliente?.rut||''}`,
     `Dirección: ${order.cliente?.direccion||''}`,
@@ -3418,11 +3709,25 @@ function documentCustomerClosingText(order={}, channel='email') {
     'Centro Fitting'
   ].filter(v=>String(v||'').trim()).join('\r\n');
 }
-function buildDocumentHtml(order) {
+function vendorContactParts(order={}) {
+  return [
+    order.vendedor || currentUser?.name || '',
+    order.vendedorEmail || order.emailRecipients?.vendedor || currentUser?.email || '',
+    formatChilePhone(order.vendedorPhone || currentUser?.phone || '')
+  ].map(v => String(v||'').trim()).filter(Boolean);
+}
+function vendorContactText(order={}) {
+  const parts = vendorContactParts(order);
+  return parts.length ? parts.join(' · ') : '';
+}
+function buildDocumentHtml(order, opts={}) {
   const cfg = DOC_TYPES[order.docType] || DOC_TYPES.cotizacion;
   const company = getCompanyConfig();
   const items = order.items || [];
   const totals = docTotals(items);
+  const vendorContact = vendorContactText(order);
+  const testNoticeHtml = order.isTestClient ? '<div style="font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;padding:8px 10px;margin:0 0 12px 0;text-align:center;">CLIENTE DE PRUEBA - No usar como documento real</div>' : '';
+  const reviewNoticeHtml = opts.central ? clientContactReviewHtml(order.clientContactReview) : '';
   const rowStyle = 'padding:8px 6px;border-right:1px solid #d9deea;border-bottom:1px solid #d9deea;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111827;vertical-align:top;line-height:1.25;';
   const lastRowStyle = 'padding:8px 6px;border-bottom:1px solid #d9deea;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#111827;vertical-align:top;line-height:1.25;';
   const thStyle = 'padding:8px 6px;border-right:1px solid #d9deea;border-bottom:2px solid #061a53;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#061a53;text-align:left;white-space:nowrap;';
@@ -3482,6 +3787,7 @@ function buildDocumentHtml(order) {
               <div style="font-size:12px;line-height:1.35;color:#64748b;margin:0 0 14px 0;">
                 ${mobileHintHtml}
               </div>
+              ${reviewNoticeHtml}
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;background:#ffffff;">
                 <tr>
                   <td style="padding:18px 22px 8px 22px;font-family:Arial,Helvetica,sans-serif;">
@@ -3502,6 +3808,7 @@ function buildDocumentHtml(order) {
                   </td>
                 </tr>
               </table>
+              ${testNoticeHtml}
               <div style="font-size:28px;font-weight:bold;color:#061a53;text-align:center;margin:22px 0 14px 0;">${escEmailHtml(cfg.title)}</div>
               <div style="font-size:16px;font-weight:bold;color:#061a53;margin:18px 0 8px 0;">INFORMACIÓN DEL CLIENTE</div>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
@@ -3518,6 +3825,7 @@ function buildDocumentHtml(order) {
                   </td>
                 </tr>
               </table>
+              ${vendorContact ? `<div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.35;color:#475569;margin:4px 0 0 2px;"><strong style="color:#061a53;">Vendedor:</strong> ${escEmailHtml(vendorContact)}</div>` : ''}
               <div style="font-size:16px;font-weight:bold;color:#061a53;margin:18px 0 8px 0;">DETALLE</div>
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #061a53;border-collapse:collapse;table-layout:fixed;">
                 ${detailColgroup}
@@ -3706,7 +4014,11 @@ async function buildOrderPdfRecord(order) {
     yy = 51;
     pdf.setFont('helvetica','bold'); pdf.setFontSize(13); pdf.setTextColor(...black);
     pdf.text(cfg.title, pageW/2, yy, {align:'center'});
-    yy += 7;
+    if (order.isTestClient) {
+      pdf.setFontSize(8); pdf.setTextColor(180,83,9);
+      pdf.text('CLIENTE DE PRUEBA - No usar como documento real', pageW/2, yy+5, {align:'center'});
+    }
+    yy += order.isTestClient ? 12 : 7;
 
     const clientBoxH = 23;
     pdf.setDrawColor(...navy); pdf.setLineWidth(.35); pdfRoundedRect(pdf, margin, yy, contentW, clientBoxH, 2, 'S');
@@ -3717,7 +4029,16 @@ async function buildOrderPdfRecord(order) {
     pdfLabelValueLine(pdf, 'Ciudad / Comuna:', [order.cliente?.ciudad, order.cliente?.comuna].filter(Boolean).join(' / '), rightX, clientY, 82);
     pdfLabelValueLine(pdf, 'Fecha:', pdfDateOnly(order.fecha), rightX, clientY+6, 82);
     pdfLabelValueLine(pdf, 'Validez:', order.validUntil || validUntilText(new Date(), order.validityDays), rightX, clientY+12, 82);
-    return yy + clientBoxH + 6;
+    const vendorContact = vendorContactText(order);
+    if (vendorContact) {
+      const vendorY = yy + clientBoxH + 4.5;
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(6.9); pdf.setTextColor(...navy);
+      pdf.text('Vendedor:', margin+2, vendorY);
+      const vendorLabelW = pdf.getTextWidth('Vendedor:') + 2;
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(6.9); pdf.setTextColor(...muted);
+      pdf.text(pdfFitText(pdf, vendorContact, contentW-4-vendorLabelW), margin+2+vendorLabelW, vendorY);
+    }
+    return yy + clientBoxH + (vendorContact ? 9 : 6);
   }
 
   function drawFooter(pageNum) {
@@ -4125,6 +4446,10 @@ async function sendDocumentDirect(orderData, recipients) {
       document:orderData,
       html:buildDocumentHtml(orderData),
       text:buildDocumentBody(orderData),
+      centralHtml:buildDocumentHtml(orderData, {central:true}),
+      centralText:buildDocumentBody(orderData, {central:true}),
+      clientHtml:buildDocumentHtml(orderData, {central:false}),
+      clientText:buildDocumentBody(orderData, {central:false}),
       pdfAttachment,
       erpFlatAttachment
     };
@@ -4282,6 +4607,7 @@ function copyEmailDebugLog() {
 
 function persistCurrentPedido() {
   if (!cart.length) return null;
+  if (isTestClient(selectedClient) && !isSupraAdmin()) { toast('Cliente de prueba disponible solo para Supra','err'); return null; }
   const adjustedDiscounts = normalizeCartDiscounts({silent:false});
   if (adjustedDiscounts) renderCart();
   const obs=currentCartObs();
@@ -4295,6 +4621,7 @@ function persistCurrentPedido() {
     if (idx!==-1) {
       orders[idx].items=[...cart.map(x=>({...x}))];
       orders[idx].cliente=selectedClient?{...selectedClient}:null;
+      orders[idx].isTestClient=isTestClient(selectedClient);
       orders[idx].total=cartTotal();
       orders[idx].obs=obs;
       orders[idx].paymentCondition=currentPaymentCondition||'';
@@ -4307,7 +4634,8 @@ function persistCurrentPedido() {
     }
   }
   if (!savedOrder) {
-    savedOrder = {id:Date.now(),fecha:new Date().toLocaleString('es-CL'),vendedor:currentUser?.name||'',cliente:selectedClient?{...selectedClient}:null,items:[...cart.map(x=>({...x}))],total:cartTotal(),obs,paymentCondition:currentPaymentCondition||'',paymentConditionCode,validityDays,estado:'proceso',updatedAtMs:Date.now()};
+    const activeVendor = currentVendorForDiscounts();
+    savedOrder = {id:Date.now(),fecha:new Date().toLocaleString('es-CL'),vendedor:activeVendor?.name||currentUser?.name||'',vendedorCodigo:activeVendor?.codigo||currentUser?.codigo||'',vendedorEmail:normalizeEmail(activeVendor?.email||currentUser?.email||''),vendedorPhone:normalizePhone(activeVendor?.phone||currentUser?.phone||''),cliente:selectedClient?{...selectedClient}:null,isTestClient:isTestClient(selectedClient),items:[...cart.map(x=>({...x}))],total:cartTotal(),obs,paymentCondition:currentPaymentCondition||'',paymentConditionCode,validityDays,estado:'proceso',updatedAtMs:Date.now()};
     orders.unshift(savedOrder);
   }
   activeOrderId = savedOrder.id;
@@ -4422,19 +4750,23 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
   const adjustedDiscounts = normalizeCartDiscounts({silent:false});
   if (adjustedDiscounts) renderCart();
   if (!selectedClient) { toast('Selecciona un cliente primero','warn'); openCliModal(); return; }
+  if (isTestClient(selectedClient) && !isSupraAdmin()) { toast('Cliente de prueba disponible solo para Supra','err'); return; }
   const adminEmail=normalizeEmail(LS.get('email')||'');
   if (!isValidEmail(adminEmail)) { toast('Configura el Email Central para envío de documentos en Admin','err'); return; }
   const paymentCondition = currentPaymentCondition || document.getElementById('cart-payment-condition')?.value || '';
   if (!paymentCondition) { toast('Selecciona la condicion de pago antes de enviar','err'); goTab('carrito'); return; }
   const paymentConditionCode = paymentConditionCodeFor(paymentCondition);
+  const activeVendor = currentVendorForDiscounts();
   if (docType === 'nota_venta' && !paymentConditionCode) { toast('Agrega codigo ERP a la condicion de pago en Admin','err'); return; }
-  if (docType === 'nota_venta' && !currentUser?.codigo) { toast('Agrega codigo usuario ERP en Admin','err'); return; }
+  if (docType === 'nota_venta' && !(activeVendor?.codigo || currentUser?.codigo)) { toast('Agrega codigo usuario ERP en Admin','err'); return; }
   const freightItems = cartFreightItems();
   if (!freightItems.length && !hasPickupFreightSelected()) { toast('Agrega un flete antes de enviar','err'); openFreightSelector(); return; }
   if (freightItems.length > 1 && !confirmedMultipleFreights) { openMultipleFreightConfirm(docType, sendMode, freightItems.length); return; }
   const validityDays = normalizeValidityDays(currentValidityDays || document.getElementById('cart-validity-days')?.value || 7);
-  const vendorEmail=normalizeEmail(currentUser?.email||'');
+  const vendorEmail=normalizeEmail(activeVendor?.email||currentUser?.email||'');
+  const vendorPhone=normalizePhone(activeVendor?.phone||currentUser?.phone||'');
   if (vendorEmail && !isValidEmail(vendorEmail)) { toast('El correo del vendedor no es valido. Revisalo en Admin','err'); return; }
+  if (vendorPhone && !isValidChilePhone(vendorPhone)) { toast('El telefono del vendedor no es valido. Usa formato +56912345678 en Admin','err'); return; }
   const clientEmail=normalizeEmail(document.getElementById('send-client-email')?.value||'');
   const clientCcEmail=normalizeEmail(document.getElementById('send-client-cc-email')?.value||'');
   const clientPhone=normalizePhone(document.getElementById('send-client-phone')?.value||'');
@@ -4442,8 +4774,8 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
   if (clientEmail && !isValidEmail(clientEmail)) { toast('Ingresa un correo válido para el cliente','err'); return; }
   if (clientCcEmail && !isValidEmail(clientCcEmail)) { toast('Ingresa un correo valido para la copia','err'); return; }
   if (clientPhone && !isValidChilePhone(clientPhone)) { toast('Telefono WhatsApp debe tener 9 digitos, ej: 912345678','err'); return; }
-  if (clientEmail) saveClientEmail(selectedClient, clientEmail);
-  if (clientPhone) saveClientPhone(selectedClient, clientPhone);
+  if (!isTestClient(selectedClient) && clientEmail) saveClientEmail(selectedClient, clientEmail);
+  if (!isTestClient(selectedClient) && clientPhone) saveClientPhone(selectedClient, clientPhone);
   closeModal();
   showLoading('Reservando correlativo...');
   const now = new Date();
@@ -4456,9 +4788,12 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     id: activeOrderId || Date.now(),
     issuedAtMs: Date.now(),
     fecha,
-    vendedor: currentUser.name,
-    vendedorCodigo: currentUser.codigo || '',
+    vendedor: activeVendor?.name || currentUser.name,
+    vendedorCodigo: activeVendor?.codigo || currentUser.codigo || '',
+    vendedorEmail: vendorEmail,
+    vendedorPhone: vendorPhone,
     cliente:{...selectedClient},
+    isTestClient:isTestClient(selectedClient),
     items:[...cart.map(x=>({...x}))],
     neto:totals.gross,
     descuentos:totals.discounts,
@@ -4487,6 +4822,8 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     emailSends:[],
     updatedAtMs:Date.now()
   };
+  orderData.clientContactReview = buildClientContactReview(selectedClient, {email:sendMode === 'both' ? clientEmail : '', phone:sendMode === 'both' ? clientPhone : ''}, orderData);
+  if (orderData.clientContactReview) syncClientContactReview(orderData.clientContactReview);
   try {
     showLoading('Generando PDF...');
     orderData.pdf = await saveOrderPdf(orderData);
@@ -4645,7 +4982,7 @@ function renderHistorial() {
     </div>
     <div class="hist-card-main">
       <div class="hist-card-info">
-        <div class="hist-card-cli">${o.cliente?.nombre||'Sin cliente'}</div>
+        <div class="hist-card-cli">${o.isTestClient?'<span style="color:var(--orange);font-weight:900;">[PRUEBA]</span> ':''}${o.cliente?.nombre||'Sin cliente'}</div>
         <div class="hist-card-vendedor">${[o.vendedor,o.documentNumber].filter(Boolean).join(' · ')}</div>
         <div class="hist-card-bottom">
           <div><div class="hist-card-items">${orderItemsCount(o)} producto${orderItemsCount(o)!==1?'s':''}</div>${o.paymentCondition?`<div class="hist-card-pay">${escEmailHtml(o.paymentCondition)}</div>`:''}<div class="hist-card-pay">${escEmailHtml(orderValidityDisplay(o))}</div></div>
@@ -4664,6 +5001,10 @@ function updateHistDot() {
 
 let pendingCartLoad = null;
 function loadPedidoIntoCart(source, mode) {
+  if ((source.isTestClient || isTestClient(source.cliente)) && !isSupraAdmin()) {
+    toast('Cliente de prueba disponible solo para Supra','err');
+    return;
+  }
   cart=hydrateItemsUnits(source.items||[]);
   const adjustedDiscounts = normalizeCartDiscounts({silent:true});
   selectedClient=source.cliente?{...source.cliente}:null;
@@ -4769,7 +5110,7 @@ function showOrderDetail(id) {
   const detailItems = hydrateItemsUnits(o.items||[]);
   const lines=detailItems.map(orderDetailItemHTML).join('');
   openModal(`<div class="detail-modal-body">
-    <div class="modal-title">${o.cliente?.nombre||'Sin cliente'}</div>
+    <div class="modal-title">${o.isTestClient?'[PRUEBA] ':''}${o.cliente?.nombre||'Sin cliente'}</div>
     <div class="modal-sub">${o.fecha} · ${o.vendedor}${docLabel?' · '+docLabel:''} · <span class="hist-badge ${orderState(o)}" style="display:inline;padding:2px 8px">${orderState(o)==='enviado'?'Enviado':'En proceso'}</span></div>
     <div style="display:flex;justify-content:flex-end;margin:4px 0 8px;"><button class="price-mode-btn" onclick="cyclePriceViewMode(event)"></button></div>
     ${emailStatusLabel(o)?`<div style="font-size:12px;font-weight:800;margin:8px 0;color:${emailStatusClass(o)==='err'?'var(--red)':emailStatusClass(o)==='ok'?'var(--green)':'var(--warn)'};">${emailStatusLabel(o)}</div>`:''}
@@ -4779,6 +5120,7 @@ function showOrderDetail(id) {
       <span>Total</span><span style="color:var(--navy)">${priceDuoHTML(o.total, '', {mode:'both', className:'total-price-duo'})}</span>
     </div>
     ${o.paymentCondition?`<div style="font-size:12px;color:var(--text2);margin-top:6px;"><strong style="color:var(--text);">Condicion de pago:</strong> ${escEmailHtml(o.paymentCondition)}</div>`:''}
+    ${o.clientContactReview?.diffs?.length?`<div style="font-size:12px;color:#92400e;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--rs);padding:8px;margin-top:6px;"><strong>Revisar maestro Sisgen:</strong><br>${escEmailHtml(clientContactReviewText(o.clientContactReview)).replace(/\r?\n/g,'<br>')}</div>`:''}
     ${o.erpFlatFile?.fileName?`<div style="font-size:12px;color:var(--text2);margin-top:4px;"><strong style="color:var(--text);">Archivo plano:</strong> ${escEmailHtml(o.erpFlatFile.fileName)} (${o.erpFlatFile.lineCount||0} lineas)</div>`:''}
     <div style="font-size:12px;color:var(--text2);margin-top:4px;"><strong style="color:var(--text);">Validez:</strong> ${escEmailHtml(orderValidityDisplay(o).replace(/^Validez (hasta|documento):\s*/,''))}</div>
     ${o.obs?`<div style="font-size:12px;color:var(--text2);margin-top:4px;">Obs: ${escEmailHtml(o.obs)}</div>`:''}
@@ -4801,6 +5143,10 @@ async function resendOrder(id) {
     toast('Este registro antiguo no tiene tipo de documento','warn');
     return;
   }
+  if (o.isTestClient && !isSupraAdmin()) {
+    toast('Solo Supra puede reenviar clientes de prueba','err');
+    return;
+  }
   const cfg = DOC_TYPES[o.docType] || DOC_TYPES.cotizacion;
   showLoading('Reenviando correo...');
   const recipients = {adminEmail, vendorEmail:o.emailRecipients?.vendedor||'', clientEmail:o.emailRecipients?.cliente||'', clientCcEmail:o.emailRecipients?.copia||'', clientPhone:o.emailRecipients?.telefono||''};
@@ -4809,6 +5155,11 @@ async function resendOrder(id) {
       const flat = buildErpFlatFileRecord(o);
       o.flatOrderNumber = flat.flatOrderNumber;
       o.erpFlatFile = {fileName:flat.fileName,mimeType:flat.mimeType,content:flat.content,lineCount:flat.lineCount,size:flat.size,generatedAt:new Date().toISOString()};
+    }
+    const review = buildClientContactReview(o.cliente, {email:recipients.clientEmail, phone:recipients.clientPhone}, o);
+    if (review) {
+      o.clientContactReview = review;
+      syncClientContactReview(review);
     }
     const result = await sendDocumentDirect(o, recipients);
     o.emailStatus='enviado';
@@ -4924,9 +5275,7 @@ function renderCliSearch(q) {
   const el = document.getElementById('cli-modal-results');
   if (!q) { el.innerHTML=''; return; }
   const ql = q.toLowerCase();
-  const officialRuts = new Set(clients.map(c => normalizeRut(c.rut)).filter(Boolean));
-  const tempClients = (LS.get('temp_clients')||[]).filter(c => !officialRuts.has(normalizeRut(c.rut)));
-  const res = clients.concat(tempClients).filter(c => [c.rut,c.nombre,c.direccion,c.comuna,c.ciudad].some(v => String(v||'').toLowerCase().includes(ql))).slice(0,20);
+  const res = clientSearchPool().filter(c => [c.rut,c.nombre,c.direccion,c.comuna,c.ciudad].some(v => String(v||'').toLowerCase().includes(ql))).slice(0,20);
   if (!res.length) {
     el.innerHTML = `<div class="empty-state" style="padding:20px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><p>Sin resultados</p><small>Prueba con otro nombre o RUT</small></div>`;
     return;
@@ -4935,13 +5284,17 @@ function renderCliSearch(q) {
     <div onclick='selectClient(${JSON.stringify(c).replace(/'/g,"&#39;")})' style="background:#fff;border-radius:var(--rs);box-shadow:var(--sh);padding:11px 13px;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:7px;transition:transform .1s;" ontouchstart="this.style.transform='scale(.98)'" ontouchend="this.style.transform=''">
       <div style="width:36px;height:36px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;flex-shrink:0;">${(c.nombre[0]||'?').toUpperCase()}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.3;">${c.nombre}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.3;">${isTestClient(c)?'<span style="color:var(--orange);font-weight:900;">[PRUEBA]</span> ':''}${c.nombre}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-weight:600;">${clientDetailsLine(c)}</div>
       </div>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;color:var(--text3);flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
     </div>`).join('');
 }
 function selectClient(c) {
+  if (isTestClient(c) && !isSupraAdmin()) {
+    toast('Cliente de prueba disponible solo para Supra','err');
+    return;
+  }
   selectedClient=c;
   document.getElementById('cli-modal-overlay').classList.add('hidden');
   updateCartCliBar(); toast(c.nombre+' seleccionado ✓','ok');
@@ -4980,6 +5333,86 @@ function saveNewCli() {
 }
 
 // ══ ADMIN ════════════════════════════════════════
+function adminTestClients() {
+  if (!requireSupraAccess()) return;
+  const rows = testClients().map(testClientRowHTML).join('');
+  openModal(`<div class="modal-title">Clientes de prueba</div>
+  <div class="modal-sub">Solo Supra puede verlos y usarlos. No se mezclan con el maestro Sisgen.</div>
+  <div id="test-client-list" style="display:flex;flex-direction:column;gap:8px;margin:12px 0;">${rows || '<div class="modal-sub">Sin clientes de prueba creados.</div>'}</div>
+  <button class="btn-add-vendor" style="margin-bottom:12px;" onclick="addTestClientDraft()">+ Agregar cliente de prueba</button>
+  <div class="modal-btns"><button class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`);
+}
+function testClientRowHTML(c) {
+  const client = normalizeTestClient(c);
+  return `<div class="vendor-row" style="align-items:flex-start;">
+    <div class="vendor-name">
+      <span class="vendor-discount-tag">PRUEBA</span> ${escEmailHtml(client.nombre)}
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-top:2px;">${escEmailHtml(client.id)} · ${escEmailHtml(client.direccion)} · ${escEmailHtml([client.comuna,client.ciudad].filter(Boolean).join(' / '))}</div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);margin-top:2px;">${client.email ? escEmailHtml(client.email) : 'Sin correo'}${client.phone ? ' · '+escEmailHtml(client.phone) : ' · Sin telefono'}</div>
+    </div>
+    <button class="vendor-edit-btn" onclick="editTestClient('${client.id}')">Editar</button>
+    <button class="vendor-del-btn" onclick="deleteTestClient('${client.id}')">×</button>
+  </div>`;
+}
+function addTestClientDraft() {
+  editTestClient('', defaultTestClientDraft());
+}
+function editTestClient(id='', draft=null) {
+  if (!requireSupraAccess()) return;
+  const client = normalizeTestClient(draft || testClients().find(c => c.id === id) || defaultTestClientDraft());
+  openModal(`<div class="modal-title">${id ? 'Editar cliente de prueba' : 'Agregar cliente de prueba'}</div>
+  <div class="modal-sub">Email y telefono quedan libres para usar datos reales de prueba.</div>
+  <label class="modal-lbl">Identificador automatico</label>
+  <input class="modal-inp" id="test-client-id" value="${escEmailHtml(client.id)}" readonly>
+  <label class="modal-lbl">Nombre</label>
+  <input class="modal-inp" id="test-client-name" value="${escEmailHtml(client.nombre)}">
+  <label class="modal-lbl">Direccion</label>
+  <input class="modal-inp" id="test-client-address" value="${escEmailHtml(client.direccion)}">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+    <div><label class="modal-lbl">Comuna</label><input class="modal-inp" id="test-client-comuna" value="${escEmailHtml(client.comuna)}"></div>
+    <div><label class="modal-lbl">Ciudad</label><input class="modal-inp" id="test-client-city" value="${escEmailHtml(client.ciudad)}"></div>
+  </div>
+  <label class="modal-lbl">Correo prueba</label>
+  <input class="modal-inp" id="test-client-email" type="email" value="${escEmailHtml(client.email)}" placeholder="correo.real@prueba.cl">
+  <label class="modal-lbl">Telefono prueba</label>
+  <input class="modal-inp" id="test-client-phone" type="tel" inputmode="numeric" value="${escEmailHtml(client.phone)}" placeholder="912345678">
+  <div class="modal-btns"><button class="btn-cancel" onclick="adminTestClients()">Volver</button><button class="btn-confirm" onclick="saveTestClient('${id}')">Guardar</button></div>`);
+}
+function saveTestClient(previousId='') {
+  if (!requireSupraAccess()) return;
+  const id = String(document.getElementById('test-client-id')?.value||'').trim().toUpperCase();
+  const nombre = String(document.getElementById('test-client-name')?.value||'').trim();
+  const direccion = String(document.getElementById('test-client-address')?.value||'').trim();
+  const comuna = String(document.getElementById('test-client-comuna')?.value||'').trim();
+  const ciudad = String(document.getElementById('test-client-city')?.value||'').trim();
+  const email = normalizeEmail(document.getElementById('test-client-email')?.value||'');
+  const phone = normalizePhone(document.getElementById('test-client-phone')?.value||'');
+  if (!id || !id.startsWith('TEST-')) { toast('Identificador de prueba invalido','err'); return; }
+  if (!nombre) { toast('Nombre obligatorio','err'); return; }
+  if (email && !isValidEmail(email)) { toast('Correo de prueba invalido','err'); return; }
+  if (phone && !isValidChilePhone(phone)) { toast('Telefono debe tener formato chileno','err'); return; }
+  const now = new Date().toISOString();
+  const existing = testClients();
+  const current = existing.find(c => c.id === (previousId || id)) || {};
+  const client = normalizeTestClient({...current, id, rut:id, nombre, direccion, comuna, ciudad, email, phone, updatedAt:now, updatedBy:currentUser?.name||'Supra Admin', createdAt:current.createdAt||now, createdBy:current.createdBy||currentUser?.name||'Supra Admin'});
+  const next = existing.filter(c => c.id !== previousId && c.id !== id);
+  next.unshift(client);
+  LS._setLocal('test_clients', next);
+  syncTestClientToFirebase(client);
+  updateTestClientsUI();
+  adminTestClients();
+  toast('Cliente de prueba guardado','ok');
+}
+function deleteTestClient(id) {
+  if (!requireSupraAccess()) return;
+  const next = testClients().filter(c => c.id !== id);
+  LS._setLocal('test_clients', next);
+  deleteTestClientFromFirebase(id);
+  updateTestClientsUI();
+  adminTestClients();
+  toast('Cliente de prueba eliminado','ok');
+}
+
 function adminEmail() {
   if (!requireSupraAccess()) return;
   openModal(`<div class="modal-title">Email Central para envío de documentos</div>
@@ -5087,12 +5520,209 @@ function normalizeProductVisibilityRules(raw={}) {
   next.invalidPrice.minPrice = Math.max(0, Math.round(Number(next.invalidPrice.minPrice)||0));
   next.stockDate.enabled = !!next.stockDate.enabled;
   next.stockDate.months = Math.max(0, Math.round(Number(next.stockDate.months)||0));
+  next.stockDate.cutoffDate = normalizeVisibilityCutoffDate(next.stockDate.cutoffDate, next.stockDate.months);
   next.stockDate.invalidDateAction = ['review','hide','show'].includes(next.stockDate.invalidDateAction) ? next.stockDate.invalidDateAction : 'review';
   next.services.excludeFromStockDate = next.services.excludeFromStockDate !== false;
   next.duplicates.autoResolve = next.duplicates.autoResolve !== false;
   next.exceptions.alwaysShow = String(next.exceptions.alwaysShow||'').trim();
   next.exceptions.alwaysHide = String(next.exceptions.alwaysHide||'').trim();
   return next;
+}
+function normalizeVisibilityCutoffDate(value='', fallbackMonths=12) {
+  const parsed = parseProductDateValue(value);
+  if (parsed.iso) return parsed.iso;
+  const d = new Date();
+  d.setMonth(d.getMonth() - (Math.max(0, Math.round(Number(fallbackMonths)||0))));
+  return d.toISOString().slice(0,10);
+}
+function visibilityExceptionItems(value='') {
+  const codes = [...productVisibilityCodeSet(value)];
+  return codes.map(code => {
+    const p = prods.find(x => catalogCode(x.cod) === code);
+    return {code, nom:p?.nom || '', unidad:p?.unidad || '', precio:p?.precio ?? '', stock:p?.stock ?? ''};
+  });
+}
+function visibilityExceptionValueFromModal(kind) {
+  return [...document.querySelectorAll(`.vis-exception-row[data-kind="${kind}"]`)]
+    .map(row => catalogCode(row.getAttribute('data-code') || ''))
+    .filter(Boolean)
+    .join('\n');
+}
+function visibilityExceptionListHTML(kind, value='') {
+  const items = visibilityExceptionItems(value);
+  const allId = `vis-${kind}-all`;
+  const removeId = `vis-${kind}-remove`;
+  const title = kind === 'show' ? 'Mostrar siempre' : 'Ocultar siempre';
+  return `<div class="vis-exception-box" data-kind="${kind}" style="border:2px solid var(--border);border-radius:var(--rs);padding:10px;margin-top:10px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div>
+        <div class="modal-lbl" style="margin:0;">${title}</div>
+        <div class="modal-sub" style="margin-top:2px;">Códigos administrados por lista. Usa + para buscar y agregar productos.</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="vendor-edit-btn" style="width:32px;height:32px;padding:0;font-size:20px;" onclick="openVisibilityExceptionSearch('${kind}')">+</button>
+        <button class="vendor-del-btn" id="${removeId}" style="width:32px;height:32px;opacity:.35;" disabled onclick="removeVisibilityExceptionSelected('${kind}')">−</button>
+      </div>
+    </div>
+    <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;margin-top:8px;"><input type="checkbox" id="${allId}" onchange="toggleVisibilityExceptionAll('${kind}',this)"> Seleccionar todos</label>
+    <div id="vis-${kind}-list" style="height:188px;max-height:188px;overflow:auto;border:1px solid var(--border);border-radius:var(--rs);background:#fff;margin-top:6px;min-width:100%;">
+      ${items.length ? items.map(item=>visibilityExceptionRowHTML(kind,item)).join('') : '<div class="modal-sub" style="padding:10px;">Sin productos en la lista.</div>'}
+    </div>
+  </div>`;
+}
+function visibilityExceptionRowHTML(kind, item) {
+  return `<div class="vis-exception-row" data-kind="${kind}" data-code="${escEmailHtml(item.code)}" style="display:grid;grid-template-columns:28px 110px minmax(240px,1fr) 80px;gap:8px;align-items:center;padding:7px 8px;border-bottom:1px solid var(--border);min-width:560px;">
+    <input type="checkbox" class="vis-exception-check" onchange="updateVisibilityExceptionSelection('${kind}')">
+    <div style="font-size:12px;font-weight:900;color:var(--navy);white-space:nowrap;">${escEmailHtml(item.code)}</div>
+    <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escEmailHtml(item.nom || 'Producto no encontrado en catálogo actual')}</div>
+    <div style="font-size:11px;font-weight:800;color:var(--text3);text-align:right;white-space:nowrap;">${item.stock!=='' ? 'Stock '+escEmailHtml(item.stock) : ''}</div>
+  </div>`;
+}
+function updateVisibilityExceptionSelection(kind) {
+  const checks = [...document.querySelectorAll(`.vis-exception-row[data-kind="${kind}"] .vis-exception-check`)];
+  const selected = checks.filter(ch => ch.checked).length;
+  const remove = document.getElementById(`vis-${kind}-remove`);
+  if (remove) { remove.disabled = selected === 0; remove.style.opacity = selected ? '1' : '.35'; }
+  const all = document.getElementById(`vis-${kind}-all`);
+  if (all) {
+    all.checked = checks.length > 0 && selected === checks.length;
+    all.indeterminate = selected > 0 && selected < checks.length;
+  }
+}
+function toggleVisibilityExceptionAll(kind, el) {
+  document.querySelectorAll(`.vis-exception-row[data-kind="${kind}"] .vis-exception-check`).forEach(ch => { ch.checked = !!el.checked; });
+  updateVisibilityExceptionSelection(kind);
+}
+function removeVisibilityExceptionSelected(kind) {
+  document.querySelectorAll(`.vis-exception-row[data-kind="${kind}"] .vis-exception-check:checked`).forEach(ch => ch.closest('.vis-exception-row')?.remove());
+  updateVisibilityExceptionSelection(kind);
+  refreshVisibilityExceptionEmptyState(kind);
+}
+function refreshVisibilityExceptionEmptyState(kind) {
+  const list = document.getElementById(`vis-${kind}-list`);
+  if (!list) return;
+  if (!list.querySelector('.vis-exception-row')) list.innerHTML = '<div class="modal-sub" style="padding:10px;">Sin productos en la lista.</div>';
+}
+let pendingVisibilityRulesModalHTML = '';
+let pendingVisibilityToggleHTML = '';
+let pendingVisibilityToggleState = null;
+function openVisibilityExceptionSearch(kind) {
+  document.getElementById('vis-search-overlay')?.remove();
+  const box = document.getElementById('modal-box');
+  if (!box) return;
+  box.insertAdjacentHTML('beforeend', `<div class="vis-search-overlay" id="vis-search-overlay">
+    <div class="modal-title">${kind === 'show' ? 'Agregar a Mostrar siempre' : 'Agregar a Ocultar siempre'}</div>
+    <div class="modal-sub">Busca por código o descripción. El criterio es el mismo del buscador principal.</div>
+    <input class="modal-inp" id="vis-exception-search" placeholder="Código o texto del producto" oninput="renderVisibilityExceptionSearch('${kind}',this.value)" autocomplete="off">
+    <div id="vis-exception-results" style="max-height:360px;overflow:auto;"></div>
+    <div class="modal-btns" style="margin-top:12px;"><button class="btn-cancel" onclick="closeVisibilityExceptionSearch()">Volver</button></div>
+  </div>`);
+  setTimeout(()=>document.getElementById('vis-exception-search')?.focus(),50);
+}
+function closeVisibilityExceptionSearch() {
+  document.getElementById('vis-search-overlay')?.remove();
+}
+function restoreVisibilityRulesModal() {
+  if (pendingVisibilityRulesModalHTML) {
+    openModal(pendingVisibilityRulesModalHTML);
+    ['show','hide'].forEach(updateVisibilityExceptionSelection);
+  } else adminProductVisibilityRules();
+}
+function visibilityExceptionCodes(kind) {
+  let rows = [...document.querySelectorAll(`.vis-exception-row[data-kind="${kind}"]`)];
+  if (!rows.length && pendingVisibilityRulesModalHTML) {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = pendingVisibilityRulesModalHTML;
+    rows = [...wrap.querySelectorAll(`.vis-exception-row[data-kind="${kind}"]`)];
+  }
+  return new Set(rows.map(row => catalogCode(row.getAttribute('data-code') || '')).filter(Boolean));
+}
+function renderVisibilityExceptionSearch(kind, q='') {
+  const el = document.getElementById('vis-exception-results');
+  if (!el) return;
+  const query = String(q||'').trim();
+  if (!query) { el.innerHTML = ''; return; }
+  const existing = visibilityExceptionCodes(kind);
+  const rows = prods
+    .map((p,idx)=>({p,idx,score:productSearchScore(p,query)}))
+    .filter(x=>x.score !== null)
+    .sort((a,b)=>a.score-b.score || a.idx-b.idx)
+    .slice(0,30);
+  el.innerHTML = rows.length ? rows.map(({p}) => {
+    const code = catalogCode(p.cod);
+    const disabled = existing.has(code);
+    return `<div style="display:grid;grid-template-columns:minmax(0,1fr) 38px;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);">
+      <div style="min-width:0;"><div style="font-size:12px;font-weight:900;color:var(--navy);">${escEmailHtml(code)} ${stockBadgeHTML(p,{prefix:'Stock'})}</div><div style="font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escEmailHtml(p.nom||'')}</div></div>
+      <button class="vendor-edit-btn" style="width:34px;height:34px;padding:0;font-size:20px;${disabled?'opacity:.35;':''}" ${disabled?'disabled':''} onclick="addVisibilityExceptionFromSearch('${kind}','${encodeURIComponent(code)}')">+</button>
+    </div>`;
+  }).join('') : '<div class="modal-sub" style="padding:14px 0;">Sin resultados.</div>';
+}
+function addVisibilityExceptionFromSearch(kind, encodedCode) {
+  const code = decodeURIComponent(encodedCode || '');
+  const p = prods.find(x => catalogCode(x.cod) === code);
+  if (!code || !p) return;
+  const list = document.getElementById(`vis-${kind}-list`);
+  if (!list) return;
+  if (!visibilityExceptionCodes(kind).has(code)) {
+    if (!list.querySelector('.vis-exception-row')) list.innerHTML = '';
+    list.insertAdjacentHTML('afterbegin', visibilityExceptionRowHTML(kind, {code, nom:p.nom||'', unidad:p.unidad||'', precio:p.precio, stock:p.stock ?? ''}));
+  }
+  updateVisibilityExceptionSelection(kind);
+  closeVisibilityExceptionSearch();
+  list.scrollTop = 0;
+}
+function confirmVisibilityEnabledToggle(el) {
+  const previous = el.getAttribute('data-prev') === '1';
+  const next = !!el.checked;
+  if (previous === next) return;
+  pendingVisibilityToggleHTML = document.getElementById('modal-box')?.innerHTML || '';
+  pendingVisibilityToggleState = {previous, next};
+  const turningOn = next;
+  openModal(`<div class="modal-title">${turningOn ? 'Activar reglas al publicar' : 'Desactivar reglas al publicar'}</div>
+    <div class="modal-sub">${turningOn
+      ? 'Activar estas reglas no cambia el catálogo actual. Será efectivo en la próxima Actualizar catálogo o Reagrupar catálogo.'
+      : 'Desactivar estas reglas no cambia el catálogo actual. En la próxima Actualizar catálogo o Reagrupar catálogo se publicará el catálogo sin aplicar estas reglas.'}</div>
+    <div class="modal-btns">
+      <button class="btn-confirm" onclick="applyVisibilityEnabledToggle()">${turningOn ? 'Activar' : 'Desactivar'}</button>
+      <button class="btn-cancel" onclick="cancelVisibilityEnabledToggle()">Cancelar</button>
+    </div>`);
+}
+function restoreVisibilityToggleModal() {
+  if (pendingVisibilityToggleHTML) {
+    openModal(pendingVisibilityToggleHTML);
+    ['show','hide'].forEach(updateVisibilityExceptionSelection);
+  } else adminProductVisibilityRules();
+}
+function applyVisibilityEnabledToggle() {
+  const state = pendingVisibilityToggleState;
+  restoreVisibilityToggleModal();
+  const el = document.getElementById('vis-enabled');
+  if (el && state) {
+    el.checked = state.next;
+    el.setAttribute('data-prev', state.next ? '1' : '0');
+    updateVisibilityPublishOnlyState();
+  }
+  pendingVisibilityToggleHTML = '';
+  pendingVisibilityToggleState = null;
+}
+function cancelVisibilityEnabledToggle() {
+  const state = pendingVisibilityToggleState;
+  restoreVisibilityToggleModal();
+  const el = document.getElementById('vis-enabled');
+  if (el && state) {
+    el.checked = state.previous;
+    el.setAttribute('data-prev', state.previous ? '1' : '0');
+    updateVisibilityPublishOnlyState();
+  }
+  pendingVisibilityToggleHTML = '';
+  pendingVisibilityToggleState = null;
+}
+function updateVisibilityPublishOnlyState() {
+  const enabled = !!document.getElementById('vis-enabled')?.checked;
+  const publishOnly = document.getElementById('vis-publish-only');
+  const row = document.getElementById('vis-publish-only-row');
+  if (publishOnly) publishOnly.disabled = !enabled;
+  if (row) row.style.opacity = enabled ? '1' : '.45';
 }
 function productVisibilityRules() {
   return normalizeProductVisibilityRules(LS.get('product_visibility_rules') || {});
@@ -5104,7 +5734,7 @@ function updateProductVisibilityRulesUI() {
   const parts = [];
   parts.push(r.enabled ? 'Activas en cargas' : 'Sin aplicar');
   if (r.invalidPrice.enabled) parts.push(`precio min $${r.invalidPrice.minPrice.toLocaleString('es-CL')}`);
-  if (r.stockDate.enabled) parts.push(`stock/compra ${r.stockDate.months}m`);
+  if (r.stockDate.enabled) parts.push(`stock sin compra desde ${r.stockDate.cutoffDate}`);
   if (r.exceptions.alwaysShow || r.exceptions.alwaysHide) parts.push('con excepciones');
   el.textContent = parts.join(' · ');
 }
@@ -5112,39 +5742,50 @@ function adminProductVisibilityRules() {
   if (!requireSupraAccess()) return;
   const r = productVisibilityRules();
   const actionOptions = [
-    ['review','Enviar a revisión'],
+    ['review','Seguir mostrando pero enviar a revisión'],
     ['hide','Ocultar'],
     ['show','Mostrar']
   ].map(([v,l])=>`<option value="${v}" ${r.stockDate.invalidDateAction===v?'selected':''}>${l}</option>`).join('');
+  const publishDisabled = r.enabled ? '' : 'disabled';
   openModal(`<div class="modal-title">Visibilidad de productos</div>
-  <div class="modal-sub">Estas reglas se aplican en la carga o reagrupación del catálogo. Los productos ocultos quedan registrados en el log.</div>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;margin-top:10px;"><input type="checkbox" id="vis-enabled" ${r.enabled?'checked':''}> Activar reglas al publicar</label>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-publish-only" ${r.publishOnlyVisible?'checked':''}> Publicar solo productos visibles para vendedores</label>
+  <div class="modal-sub">Estas reglas se aplican solo al Actualizar catálogo o Reagrupar catálogo. Los productos ocultos y enviados a revisión quedan registrados en el log.</div>
+  <label class="vis-switch-row">
+    <input class="vis-switch-input" type="checkbox" id="vis-enabled" data-prev="${r.enabled?'1':'0'}" ${r.enabled?'checked':''} onchange="confirmVisibilityEnabledToggle(this)">
+    <span class="vis-switch-track"></span>
+    <span class="vis-switch-text"><span class="vis-switch-title">Activar evaluación de reglas</span><span class="vis-switch-note">Calcula productos visibles, ocultos y en revisión en la próxima carga o reagrupación.</span></span>
+  </label>
+  <label class="modal-lbl" id="vis-publish-only-row" style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;${r.enabled?'':'opacity:.45;'}"><input type="checkbox" id="vis-publish-only" ${r.publishOnlyVisible?'checked':''} ${publishDisabled}> <span>Publicar solo productos visibles para vendedores<br><span class="modal-sub" style="display:block;margin:2px 0 0;text-transform:none;letter-spacing:0;">Disponible solo si la evaluación está activa. Si está marcado, los vendedores ven solo productos aprobados por las reglas. Si está desmarcado, ven el catálogo completo y las reglas quedan solo como revisión interna de la carga.</span></span></label>
   <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-price-enabled" ${r.invalidPrice.enabled?'checked':''}> Ocultar precio no viable</label>
-  <label class="modal-lbl">Precio mínimo viable</label>
+  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-price-enabled" ${r.invalidPrice.enabled?'checked':''}> Ocultar productos con precio no viable</label>
+  <div class="modal-sub" style="margin-bottom:6px;">No se mostrarán productos que tengan precio vacío, texto no numérico, cero o un precio menor al indicado.</div>
+  <label class="modal-lbl">Precio mínimo permitido</label>
   <input class="modal-inp" id="vis-price-min" type="number" min="0" step="1" value="${r.invalidPrice.minPrice}" onfocus="this.select()">
   <div style="height:1px;background:var(--border);margin:12px 0;"></div>
   <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-stock-enabled" ${r.stockDate.enabled?'checked':''}> Ocultar sin stock con última compra antigua</label>
-  <label class="modal-lbl">Meses de antigüedad máxima</label>
-  <input class="modal-inp" id="vis-stock-months" type="number" min="0" step="1" value="${r.stockDate.months}" onfocus="this.select()">
-  <label class="modal-lbl">Fecha inválida o ilegible</label>
-  <select class="modal-inp" id="vis-invalid-date">${actionOptions}</select>
-  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-services-exclude" ${r.services.excludeFromStockDate?'checked':''}> Excluir servicios de reglas de stock/fecha</label>
-  <div style="height:1px;background:var(--border);margin:12px 0;"></div>
+  <div class="modal-sub" style="margin-bottom:6px;">No se mostrarán productos SIN STOCK cuya última compra sea ANTERIOR a la fecha indicada.</div>
+  <label class="modal-lbl">Fecha de última compra</label>
+  <input class="modal-inp" id="vis-stock-cutoff" type="date" value="${escEmailHtml(r.stockDate.cutoffDate)}">
+  <label class="modal-lbl">Fecha de última compra inválida o ilegible</label>
+  <select class="modal-inp" id="vis-invalid-date" style="margin-bottom:4px;">${actionOptions}</select>
+  <div class="modal-sub" style="margin-top:0;margin-bottom:10px;">Enviar a revisión mantiene visible el producto y lo deja identificado en el log de carga/reagrupación.</div>
+  <div style="height:1px;background:var(--border);margin:12px 0 10px;"></div>
+  <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><input type="checkbox" id="vis-services-exclude" ${r.services.excludeFromStockDate?'checked':''}> Excluir servicios de reglas de stock/fecha</label>
+  <div style="height:1px;background:var(--border);margin:0 0 12px;"></div>
   <label class="modal-lbl" style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="vis-dup-auto" ${r.duplicates.autoResolve?'checked':''}> Resolver duplicados automáticamente</label>
-  <div class="modal-sub" style="margin-top:4px;">Orden: ocultar siempre, mostrar siempre, precio viable, stock disponible y última compra más reciente.</div>
-  <label class="modal-lbl" style="margin-top:10px;">Mostrar siempre - códigos separados por coma o salto</label>
-  <textarea class="modal-inp" id="vis-always-show" style="height:70px;resize:none;">${escEmailHtml(r.exceptions.alwaysShow)}</textarea>
-  <label class="modal-lbl">Ocultar siempre - códigos separados por coma o salto</label>
-  <textarea class="modal-inp" id="vis-always-hide" style="height:70px;resize:none;">${escEmailHtml(r.exceptions.alwaysHide)}</textarea>
+  <div class="modal-sub" style="margin-top:4px;">Se aplica después de las reglas anteriores. Si un duplicado está en Mostrar siempre, prevalece sobre los demás; si ambos están en Mostrar siempre, se muestran ambos. Si un duplicado está en Ocultar siempre, nunca se muestra y puede prevalecer el otro. Si ambos están en Ocultar siempre, no se muestra ninguno. Si aún quedan duplicados, se mantiene el producto con mejor precio viable, stock disponible y última compra más reciente, en ese orden.</div>
+  <div style="height:1px;background:var(--border);margin:12px 0;"></div>
+  ${visibilityExceptionListHTML('show', r.exceptions.alwaysShow)}
+  ${visibilityExceptionListHTML('hide', r.exceptions.alwaysHide)}
   <div class="modal-btns" style="margin-top:14px;">
     <button class="btn-confirm" onclick="saveProductVisibilityRules()">Guardar</button>
     <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
   </div>`);
+  ['show','hide'].forEach(updateVisibilityExceptionSelection);
+  updateVisibilityPublishOnlyState();
 }
 function saveProductVisibilityRules() {
   if (!requireSupraAccess()) return;
+  const currentRules = productVisibilityRules();
   const rules = normalizeProductVisibilityRules({
     enabled:document.getElementById('vis-enabled')?.checked,
     publishOnlyVisible:document.getElementById('vis-publish-only')?.checked,
@@ -5154,14 +5795,15 @@ function saveProductVisibilityRules() {
     },
     stockDate:{
       enabled:document.getElementById('vis-stock-enabled')?.checked,
-      months:document.getElementById('vis-stock-months')?.value,
+      months:currentRules.stockDate.months,
+      cutoffDate:document.getElementById('vis-stock-cutoff')?.value,
       invalidDateAction:document.getElementById('vis-invalid-date')?.value
     },
     services:{excludeFromStockDate:document.getElementById('vis-services-exclude')?.checked},
     duplicates:{autoResolve:document.getElementById('vis-dup-auto')?.checked},
     exceptions:{
-      alwaysShow:document.getElementById('vis-always-show')?.value || '',
-      alwaysHide:document.getElementById('vis-always-hide')?.value || ''
+      alwaysShow:visibilityExceptionValueFromModal('show'),
+      alwaysHide:visibilityExceptionValueFromModal('hide')
     }
   });
   LS.set('product_visibility_rules', rules);
@@ -5224,8 +5866,9 @@ function applyProductVisibilityRules(list=[], log={}, rawRules=null) {
   const hiddenByReason = {};
   let reviewCount = 0;
   let duplicateHiddenCount = 0;
-  const threshold = new Date();
-  threshold.setMonth(threshold.getMonth() - (rules.stockDate.months || 0));
+  const thresholdDate = parseProductDateValue(rules.stockDate.cutoffDate || normalizeVisibilityCutoffDate('', rules.stockDate.months));
+  const thresholdTime = thresholdDate.time || 0;
+  const thresholdLabel = thresholdDate.iso || rules.stockDate.cutoffDate || 'la fecha configurada';
   const records = list.map((p,idx)=>({p, idx, hidden:false, reason:'', forced:alwaysShow.has(catalogCode(p.cod))}));
   const hide = (rec, reason) => {
     if (rec.hidden) return;
@@ -5253,8 +5896,8 @@ function applyProductVisibilityRules(list=[], log={}, rawRules=null) {
             reviewCount++;
             nextLog.rows.push(productVisibilityRow(p, rec.idx, 'Revisión regla', 'Sin stock y fecha última compra no legible; se mantiene visible para revisión'));
           }
-        } else if (parsedDate.time < threshold.getTime()) {
-          hide(rec, `Sin stock y última compra anterior a ${rules.stockDate.months} meses`);
+        } else if (thresholdTime && parsedDate.time < thresholdTime) {
+          hide(rec, `Sin stock y última compra anterior a ${thresholdLabel}`);
         }
       }
     }
@@ -5268,6 +5911,15 @@ function applyProductVisibilityRules(list=[], log={}, rawRules=null) {
     });
     byCode.forEach(items => {
       if (items.length <= 1) return;
+      const forcedItems = items.filter(rec => rec.forced);
+      if (forcedItems.length) {
+        if (forcedItems.length === items.length) return;
+        items.filter(rec => !rec.forced).forEach(rec => {
+          duplicateHiddenCount++;
+          hide(rec, 'Duplicado oculto automáticamente; prevalece Mostrar siempre');
+        });
+        return;
+      }
       const ranked = [...items].sort((a,b) => {
         const av = parsePrice(a.p.precio) >= Math.max(1, rules.invalidPrice.minPrice || 1) ? 1 : 0;
         const bv = parsePrice(b.p.precio) >= Math.max(1, rules.invalidPrice.minPrice || 1) ? 1 : 0;
@@ -5991,7 +6643,7 @@ async function syncClientsToFirebase(list, meta) {
 function renderVendorList() {
   const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
   document.getElementById('vendor-list').innerHTML=vendors.map((v,i)=>`<div class="vendor-row">
-    <div class="vendor-name">${escEmailHtml(v.name)} <span class="vendor-discount-tag">${escEmailHtml(roleLabel(v.role))}</span> <span class="vendor-discount-tag">${vendorDiscountLabel(v)}</span><div style="font-size:11px;font-weight:700;color:var(--text3);margin-top:2px;">${v.email ? escEmailHtml(v.email) : 'Sin correo'}</div></div>
+    <div class="vendor-name">${escEmailHtml(v.name)} <span class="vendor-discount-tag">${escEmailHtml(roleLabel(v.role))}</span> <span class="vendor-discount-tag">${vendorDiscountLabel(v)}</span><div style="font-size:11px;font-weight:700;color:var(--text3);margin-top:2px;">${v.email ? escEmailHtml(v.email) : 'Sin correo'}${v.phone ? ' · '+escEmailHtml(formatChilePhone(v.phone)) : ' · Sin telefono'}</div></div>
     <div class="vendor-pin" title="PIN">${v.pin}</div>
     <div class="vendor-pin" title="Codigo ERP">${escEmailHtml(v.codigo||'----')}</div>
     <button class="vendor-edit-btn" onclick="editVendor(${i})">Editar</button>
@@ -6003,7 +6655,7 @@ function editVendor(i) {
   if (!requireSupraAccess()) return;
   const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
   const isNew = i === 'new' || i < 0;
-  const v=isNew ? {name:'',pin:'',codigo:'',email:'',role:'vendedor',maxProductDiscount:0,maxServiceDiscount:0,isAdmin:false} : vendors[i];
+  const v=isNew ? {name:'',pin:'',codigo:'',email:'',phone:'',role:'vendedor',maxProductDiscount:0,maxServiceDiscount:0,isAdmin:false} : vendors[i];
   if (!v) return;
   const roleOptions = Object.keys(USER_ROLES).map(role=>`<option value="${role}" ${normalizeVendorRole(v,i)===role?'selected':''}>${roleLabel(role)}</option>`).join('');
   openModal(`<div class="modal-title">${isNew ? 'Agregar usuario' : 'Editar usuario'}</div>
@@ -6013,6 +6665,7 @@ function editVendor(i) {
     <div><label class="modal-lbl">PIN (4 digitos)</label><input class="modal-inp" id="edit-v-pin" type="tel" maxlength="4" value="${escEmailHtml(v.pin)}" style="margin-bottom:0"></div>
     <div><label class="modal-lbl">Codigo usuario ERP</label><input class="modal-inp" id="edit-v-code" type="tel" inputmode="numeric" maxlength="4" value="${escEmailHtml(v.codigo||'')}" autocomplete="off" placeholder="Ej: 0004" style="margin-bottom:0"></div>
     <div><label class="modal-lbl">Correo vendedor</label><input class="modal-inp" id="edit-v-email" type="email" value="${escEmailHtml(v.email||'')}" autocomplete="email" placeholder="vendedor@empresa.cl" style="margin-bottom:0"></div>
+    <div><label class="modal-lbl">Telefono vendedor</label><input class="modal-inp" id="edit-v-phone" type="tel" inputmode="tel" value="${escEmailHtml(formatChilePhone(v.phone||''))}" autocomplete="tel" placeholder="+56912345678" style="margin-bottom:0"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div><label class="modal-lbl">Desc. max productos</label><div class="percent-input-wrap"><input class="modal-inp" id="edit-v-max-prod" type="number" inputmode="numeric" min="0" max="100" value="${normalizeDiscountLimit(v.maxProductDiscount)}" onfocus="selectQtyInput(this)" onclick="selectQtyInput(this)" style="margin-bottom:0"><span class="percent-input-symbol">%</span></div></div>
       <div><label class="modal-lbl">Desc. max servicios</label><div class="percent-input-wrap"><input class="modal-inp" id="edit-v-max-serv" type="number" inputmode="numeric" min="0" max="100" value="${normalizeDiscountLimit(v.maxServiceDiscount)}" onfocus="selectQtyInput(this)" onclick="selectQtyInput(this)" style="margin-bottom:0"><span class="percent-input-symbol">%</span></div></div>
@@ -6022,22 +6675,23 @@ function editVendor(i) {
 }
 function saveEditVendor(i) {
   if (!requireSupraAccess()) return;
-  const name=document.getElementById('edit-v-name').value.trim(), role=document.getElementById('edit-v-role')?.value||'vendedor', pin=document.getElementById('edit-v-pin').value.trim(), codigo=document.getElementById('edit-v-code')?.value.trim()||'', email=normalizeEmail(document.getElementById('edit-v-email')?.value||''), maxProductDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-prod')?.value), maxServiceDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-serv')?.value);
+  const name=document.getElementById('edit-v-name').value.trim(), role=document.getElementById('edit-v-role')?.value||'vendedor', pin=document.getElementById('edit-v-pin').value.trim(), codigo=document.getElementById('edit-v-code')?.value.trim()||'', email=normalizeEmail(document.getElementById('edit-v-email')?.value||''), phone=normalizePhone(document.getElementById('edit-v-phone')?.value||''), maxProductDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-prod')?.value), maxServiceDiscount=normalizeDiscountLimit(document.getElementById('edit-v-max-serv')?.value);
   if(!name){toast('El nombre no puede estar vacío','err');return;}
   if(!USER_ROLES[role]){toast('Selecciona un rol valido','err');return;}
   if(!/^\d{4}$/.test(pin)){toast('PIN debe ser 4 dígitos','err');return;}
   if(codigo && !/^\d{1,4}$/.test(codigo)){toast('Codigo usuario ERP debe ser numerico, maximo 4 digitos','err');return;}
   if(email && !isValidEmail(email)){toast('Correo vendedor invalido','err');return;}
+  if(phone && !isValidChilePhone(phone)){toast('Telefono vendedor invalido. Ej: +56912345678','err');return;}
   const vendors=(LS.get('vendors')||[]).map(normalizeVendor);
   const isAdmin = role === 'admin' || role === 'supra_admin';
   if (i === 'new') {
-    vendors.push({name,pin,codigo,email,role,maxProductDiscount,maxServiceDiscount,isAdmin});
+    vendors.push({name,pin,codigo,email,phone,role,maxProductDiscount,maxServiceDiscount,isAdmin});
   } else {
     const idx=parseInt(i);
     if (!vendors[idx]) return;
     const wasLastSupra = vendors[idx].role === 'supra_admin' && role !== 'supra_admin' && supraAdminCount(vendors) <= 1;
     if (wasLastSupra) { toast('Debe quedar al menos un Supra Administrador','err','long'); return; }
-    vendors[idx].name=name; vendors[idx].role=role; vendors[idx].isAdmin=isAdmin; vendors[idx].pin=pin; vendors[idx].codigo=codigo; vendors[idx].email=email; vendors[idx].maxProductDiscount=maxProductDiscount; vendors[idx].maxServiceDiscount=maxServiceDiscount;
+    vendors[idx].name=name; vendors[idx].role=role; vendors[idx].isAdmin=isAdmin; vendors[idx].pin=pin; vendors[idx].codigo=codigo; vendors[idx].email=email; vendors[idx].phone=phone; vendors[idx].maxProductDiscount=maxProductDiscount; vendors[idx].maxServiceDiscount=maxServiceDiscount;
     if (currentUser?.idx === idx) {
       currentUser = {...vendors[idx], idx, authProvider:currentUser.authProvider, authEmail:currentUser.authEmail, authPhotoURL:currentUser.authPhotoURL};
       document.getElementById('hdr-uname').textContent=currentUser.name;
