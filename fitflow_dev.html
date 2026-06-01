@@ -94,11 +94,19 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .price-mode-btn{border:1px solid var(--border);background:#fff;border-radius:999px;padding:5px 10px;font-size:10px;font-weight:800;color:var(--navy);font-family:'Barlow',sans-serif;letter-spacing:.2px;cursor:pointer;white-space:nowrap;line-height:1;display:inline-flex;align-items:center;justify-content:center;min-height:28px;}
 .price-mode-btn:active{transform:scale(.98);}
 .price-mode-single,.price-mode-duo{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1;}
-.price-mode-single-label,.price-mode-duo-gross{font-size:9px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.35px;}
-.price-mode-single-value,.price-mode-duo-net{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--green);letter-spacing:0;text-transform:none;}
-.price-mode-duo-gross{font-size:10px;font-weight:800;text-transform:none;}
+.price-mode-single-label{font-size:9px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.35px;}
+.price-mode-single-value{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--green);letter-spacing:0;text-transform:none;}
+.price-mode-single.net .price-mode-single-label{color:#6b7280;}
+.price-mode-single.net .price-mode-single-value{color:#374151;}
+.price-mode-duo-net{font-size:9px;font-weight:800;color:#374151;text-transform:none;letter-spacing:.35px;}
+.price-mode-duo-gross{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;color:var(--green);letter-spacing:0;text-transform:none;}
 .pane-meta{font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.2px;margin:0 2px 8px;text-align:right;}
-.cat-pane-meta{padding:10px 14px 0;margin:0;text-align:right;flex-shrink:0;}
+.cat-pane-top{display:flex;align-items:center;gap:8px;padding:10px 14px 0;flex-shrink:0;}
+.cat-pane-meta{margin:0;text-align:right;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.catalog-selector{display:flex;gap:4px;flex:0 0 auto;}
+.catalog-option{border:1px solid var(--border);background:#fff;color:var(--text2);border-radius:999px;padding:5px 8px;font-family:'Barlow',sans-serif;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.25px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;max-width:116px;}
+.catalog-option.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+.catalog-option:disabled{opacity:.45;cursor:not-allowed;}
 
 /* ── PRODUCT CARDS ── */
 .prod-list{display:flex;flex-direction:column;gap:7px;}
@@ -119,17 +127,19 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .modal-stock-row{display:flex;justify-content:flex-end;margin:-4px 0 10px;}
 .prod-precio{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--green);white-space:nowrap;}
 .price-duo{display:flex;flex-direction:column;align-items:flex-end;gap:2px;line-height:1;}
-.price-duo-net{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--green);white-space:nowrap;}
-.price-duo-gross{font-size:10px;font-weight:800;color:var(--text3);white-space:nowrap;text-transform:none;}
-.price-duo-gross .price-duo-gross-value{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;}
+.price-duo-net{font-size:10px;font-weight:800;color:#374151;white-space:nowrap;text-transform:none;}
+.price-duo-gross{font-size:10px;font-weight:800;color:var(--green);white-space:nowrap;text-transform:none;}
+.price-duo-gross .price-duo-gross-value{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--green);}
 .price-duo-original .price-duo-net,.price-duo-original .price-duo-gross{font-size:11px;color:var(--text3);text-decoration:line-through;}
 .total-price-duo{gap:3px;}
-.total-price-duo .price-duo-net{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--navy);text-transform:none;}
-.total-price-duo .price-duo-gross{font-family:'Barlow',sans-serif;font-size:11px;font-weight:800;color:var(--navy);text-transform:none;}
-.total-price-duo .price-duo-gross .price-duo-gross-value{font-size:20px;}
+.total-price-duo .price-duo-net{font-size:11px;font-weight:800;color:#374151;text-transform:none;}
+.total-price-duo .price-duo-gross{font-family:'Barlow',sans-serif;font-size:11px;font-weight:800;color:var(--green);text-transform:none;}
+.total-price-duo .price-duo-gross .price-duo-gross-value{font-size:20px;color:var(--green);}
 .price-single{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1;}
 .price-single-label{font-size:9px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;}
 .price-single-value{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;color:var(--green);white-space:nowrap;}
+.price-single.net .price-single-label{color:#6b7280;}
+.price-single.net .price-single-value{color:#374151;}
 .price-single-original{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;color:var(--text3);text-decoration:line-through;white-space:nowrap;line-height:1;}
 .prod-add-btn{background:var(--navy);border:none;border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
 .prod-add-btn svg{width:18px;height:18px;color:#fff;}
@@ -192,10 +202,12 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .cart-unit-label{position:absolute;right:0;top:-10px;font-size:9px;font-weight:800;color:var(--text);letter-spacing:.2px;line-height:1;white-space:nowrap;}
 .cart-line-original{line-height:1;}
 .cart-line-current{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;color:var(--green);line-height:1;}
-.cart-line-main .price-duo-net{font-size:22px;color:var(--green);}
-.cart-line-main .price-single-value{font-size:22px;color:var(--green);}
+.cart-line-main .price-duo-net{font-size:11px;color:#374151;}
+.cart-line-main .price-single-value{font-size:22px;}
+.cart-line-main .price-single.net .price-single-value{color:#374151;}
+.cart-line-main .price-single.gross .price-single-value{color:var(--green);}
 .cart-line-main .price-duo-gross,.cart-line-unit .price-duo-gross{font-size:10px;}
-.cart-line-main .price-duo-gross .price-duo-gross-value{font-size:14px;}
+.cart-line-main .price-duo-gross .price-duo-gross-value{font-size:22px;color:var(--green);}
 .cart-line-unit .price-duo-original .price-duo-net,.cart-line-unit .price-duo-original .price-duo-gross{font-size:11px;color:var(--text3);}
 @media (max-width:430px){
   .cart-card{padding-left:10px;padding-right:10px;}
@@ -206,8 +218,8 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
   .cart-desc-inp{padding-left:6px;padding-right:14px;}
   .cart-desc-pct{right:4px;}
   .cart-line-total{gap:5px;}
-  .cart-line-main .price-duo-net{font-size:21px;}
   .cart-line-main .price-single-value{font-size:21px;}
+  .cart-line-main .price-duo-gross .price-duo-gross-value{font-size:21px;}
 }
 @media (max-width:380px){
   .cart-card{padding-left:10px;padding-right:10px;}
@@ -218,8 +230,8 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
   .cart-desc-lbl{font-size:8px;left:6px;}
   .cart-desc-inp{padding-left:6px;padding-right:14px;}
   .cart-desc-pct{right:4px;}
-  .cart-line-main .price-duo-net{font-size:20px;}
   .cart-line-main .price-single-value{font-size:20px;}
+  .cart-line-main .price-duo-gross .price-duo-gross-value{font-size:20px;}
 }
 .cart-footer{background:#fff;border-top:2px solid var(--border);padding:8px 12px 9px;flex-shrink:0;}
 .cart-price-mode-row{display:flex;justify-content:flex-end;padding:8px 12px 0;}
@@ -277,7 +289,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .hist-card-vendedor{font-size:11px;color:var(--text2);margin-top:1px;}
 .hist-card-bottom{margin-top:6px;}
 .hist-card-total{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:800;color:var(--navy);text-align:right;flex:0 0 auto;min-width:116px;padding-top:1px;}
-.hist-card-total .total-price-duo .price-duo-net::before{content:'Total Neto ';font-family:'Barlow',sans-serif;font-size:11px;font-weight:800;color:var(--navy);}
+.hist-card-total .total-price-duo .price-duo-net::before{content:'Total Neto ';font-family:'Barlow',sans-serif;font-size:11px;font-weight:800;color:#6b7280;}
 .hist-card-items{font-size:11px;color:var(--text3);line-height:1.2;}
 .hist-card-pay{font-size:11px;color:var(--text2);font-weight:600;line-height:1.2;margin-top:1px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .hist-resume-btn{padding:4px 12px;border-radius:100px;border:1.5px solid var(--green);background:#fff;color:var(--green);font-size:11px;font-weight:800;font-family:'Barlow',sans-serif;cursor:pointer;}
@@ -399,11 +411,17 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .order-detail-unit-label,.order-detail-qty{font-size:11px;font-weight:900;color:var(--navy);line-height:1;}
 .order-detail-price{display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1;margin-top:2px;}
 .order-detail-value{font-family:'Barlow Condensed',sans-serif;font-weight:900;color:var(--green);font-size:18px;line-height:.95;white-space:nowrap;}
+.order-detail-price.net .order-detail-value{color:#374151;}
+.order-detail-price.net .order-detail-mode{color:#6b7280;}
 .order-detail-unit .order-detail-value{font-size:15px;color:var(--green2);}
+.order-detail-unit .order-detail-price.net .order-detail-value{color:#374151;}
 .order-detail-total .order-detail-value{font-size:20px;}
 .order-detail-mode{font-size:9px;font-weight:900;color:var(--navy);text-transform:uppercase;line-height:1;white-space:nowrap;}
-.order-detail-gross{font-size:10px;font-weight:800;color:var(--text3);line-height:1;white-space:nowrap;}
-.order-detail-gross-value{font-size:11px;font-weight:900;color:var(--green2);}
+.order-detail-net{font-size:10px;font-weight:800;color:#374151;line-height:1;white-space:nowrap;}
+.order-detail-gross{font-size:10px;font-weight:800;color:var(--green);line-height:1;white-space:nowrap;}
+.order-detail-gross-value{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:900;color:var(--green);line-height:.95;}
+.order-detail-unit .order-detail-gross-value{font-size:15px;color:var(--green2);}
+.order-detail-total .order-detail-gross-value{font-size:20px;color:var(--green);}
 
 /* ── TOAST ── */
 #toast{position:fixed;top:calc(102px + env(safe-area-inset-top));left:50%;transform:translateX(-50%) translateY(-12px);background:#1e293b;color:#fff;padding:9px 20px;border-radius:100px;font-size:13px;font-weight:700;z-index:650;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center;}
@@ -502,7 +520,10 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 
     <!-- CATEGORÍAS -->
     <div class="pane" id="pane-cats">
-      <div class="pane-meta cat-pane-meta" id="cat-prod-updated">Ultima actualizacion catalogo: -</div>
+      <div class="cat-pane-top">
+        <div class="catalog-selector" id="catalog-selector"></div>
+        <div class="pane-meta cat-pane-meta" id="cat-prod-updated">Ultima actualizacion catalogo: -</div>
+      </div>
       <div class="cat-header" id="cat-header">
         <div class="cat-back hidden" id="cat-back" onclick="catBack()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>Volver
@@ -783,8 +804,13 @@ const TEST_PHONE_CLEANUP_DEFAULTS = ['+56996491145','96491145','996491145','5699
 const FITFLOW_SESSION_KEY = 'fitflow_auth_session';
 const FITFLOW_CART_DRAFT_KEY = 'cart_draft';
 const FITFLOW_ACTIVE_TAB_KEY = 'active_tab';
+const FITFLOW_ACTIVE_CATALOG_KEY = 'active_catalog_view';
+const FITFLOW_MASTER_CATALOG_CACHE_KEY = 'catalog_master_products';
+const FITFLOW_CATALOG_VIEW_IDS = ['old','new'];
 const FITFLOW_AUTH_RECHECK_MS = 15 * 60 * 1000;
 const FITFLOW_AUTH_OFFLINE_MAX_MS = 24 * 60 * 60 * 1000;
+let catalogMasterState = {available:false, byCode:new Map(), products:[], meta:null, error:''};
+let catalogViewsState = {meta:null, views:{old:{available:true, loaded:false, byCode:new Map(), products:[], meta:null, error:''}, new:{available:false, loaded:false, byCode:new Map(), products:[], meta:null, error:''}}};
 const LOGO_TYPES = {
   login: {label:'Logo inicio', local:'logo_login', legacyLocal:'logo', doc:'logo_login', meta:'logo_login_meta', legacyDoc:'logo', legacyMeta:'logo_meta'},
   header:{label:'Logo banner', local:'logo_header', doc:'logo_header', meta:'logo_header_meta'},
@@ -891,6 +917,24 @@ function loadState() {
     LS._setLocal('prods_updated_by', 'Base embebida');
   } else {
     prods = storedProds;
+  }
+  const cachedMasterMeta = LS.get('catalog_master_meta');
+  const cachedMasterProducts = getLocalChunkCache(FITFLOW_MASTER_CATALOG_CACHE_KEY) || LS.get(FITFLOW_MASTER_CATALOG_CACHE_KEY);
+  if (cachedMasterMeta && Array.isArray(cachedMasterProducts) && cachedMasterProducts.length) {
+    catalogMasterState = buildCatalogMasterState(cachedMasterProducts, cachedMasterMeta, '');
+  }
+  const cachedViewsMeta = LS.get('catalog_views_meta');
+  if (cachedViewsMeta?.views) {
+    catalogViewsState.meta = cachedViewsMeta;
+    FITFLOW_CATALOG_VIEW_IDS.forEach(id => {
+      const viewMeta = catalogViewMeta(id);
+      const cachedProducts = getLocalChunkCache(catalogViewCacheKey(id)) || LS.get(catalogViewCacheKey(id));
+      if (viewMeta && Array.isArray(cachedProducts) && cachedProducts.length) {
+        catalogViewsState.views[id] = buildCatalogViewState(id, cachedProducts, viewMeta, '');
+      } else if (viewMeta) {
+        catalogViewsState.views[id] = {...catalogViewsState.views[id], available:true, loaded:false, meta:viewMeta};
+      }
+    });
   }
   const storedClients = LS.get('clients');
   const storedClientVersion = LS.get('clients_version');
@@ -1648,6 +1692,7 @@ async function loadFromFirebase(opts={}) {
         }
       }
     }
+    await refreshCatalogViewsFromFirebase();
     // Clientes oficiales cargados por Admin
     if (cMetaSnap.exists() && cMetaSnap.data()?.chunks) {
       const meta = cMetaSnap.data();
@@ -1738,6 +1783,7 @@ function refreshAfterSync() {
   updatePaymentConditionsUI();
   updateProductVisibilityRulesUI();
   updateTestClientsUI();
+  renderCatalogSelector();
   updateHistDot();
   if (document.getElementById('pane-historial')?.classList.contains('act')) renderHistorial();
   if (document.getElementById('pane-buscar')?.classList.contains('act')) {
@@ -2482,7 +2528,7 @@ function renderSearch(q) {
   const list=document.getElementById('prod-list'), cnt=document.getElementById('result-count');
   updatePriceModeButtons();
   if (!q) { list.innerHTML=`<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><p>Busca un producto</p><small>Por nombre, código o categoría</small></div>`; cnt.textContent=''; return; }
-  const res=prods
+  const res=activeCatalogProducts()
     .map((p,idx)=>({p,idx,score:productSearchScore(p,q)}))
     .filter(x=>x.score)
     .sort((a,b)=>
@@ -2561,7 +2607,7 @@ function priceModeLabel(mode=priceViewMode()) {
 function singlePriceHTML(grossPrice, unit='', mode=priceViewMode(), opts={}) {
   const value = mode === 'net' ? grossToNet(grossPrice) : Math.round(Number(grossPrice)||0);
   if (opts.original) return `<span class="price-single-original">${fmtPeso(value)}</span>`;
-  return `<span class="price-single"><span class="price-single-label">${mode === 'net' ? 'Neto' : 'c/IVA'}</span><span class="price-single-value">${fmtPeso(value)}</span></span>`;
+  return `<span class="price-single ${mode === 'net' ? 'net' : 'gross'}"><span class="price-single-label">${mode === 'net' ? 'Neto' : 'c/IVA'}</span><span class="price-single-value">${fmtPeso(value)}</span></span>`;
 }
 function priceDuoHTML(grossPrice, unit='', opts={}) {
   const mode = opts.mode || priceViewMode();
@@ -2587,7 +2633,7 @@ function priceModeButtonInnerHTML(mode=priceViewMode()) {
   }
   const label = mode === 'net' ? 'Neto' : 'c/IVA';
   const value = mode === 'net' ? 'Precios netos' : 'Precios c/IVA';
-  return `<span class="price-mode-single"><span class="price-mode-single-label">${label}</span><span class="price-mode-single-value">${value}</span></span>`;
+  return `<span class="price-mode-single ${mode === 'net' ? 'net' : 'gross'}"><span class="price-mode-single-label">${label}</span><span class="price-mode-single-value">${value}</span></span>`;
 }
 function refreshPriceViews() {
   updatePriceModeButtons();
@@ -2651,12 +2697,67 @@ function productCatalogGroups(p={}) {
   if (groups.length) return groups;
   return [p.cat1 || 'Sin categoría', p.cat2 || 'Sin subcategoría'].map(x=>String(x||'').trim()).filter(Boolean);
 }
+function activeCatalogView() {
+  const view = LS.get(FITFLOW_ACTIVE_CATALOG_KEY);
+  if (view === 'catalog-admin') return 'new';
+  if (view === 'fitflow') return 'old';
+  return FITFLOW_CATALOG_VIEW_IDS.includes(view) ? view : 'old';
+}
+function catalogViewOptions() {
+  return [
+    {id:'old', label:'Catálogo Antiguo', available:true},
+    {id:'new', label:'Catálogo Nuevo', available:!!(catalogViewMeta('new') || catalogViewsState.views.new.available || catalogMasterState.available)}
+  ];
+}
+function renderCatalogSelector() {
+  const el = document.getElementById('catalog-selector');
+  if (!el) return;
+  const active = activeCatalogView();
+  el.innerHTML = catalogViewOptions().map(opt => (
+    `<button class="catalog-option ${opt.id===active?'active':''}" ${opt.available?'': 'disabled'} title="${opt.available ? opt.label : 'Aún no hay catálogo publicado desde Catalog Admin'}" onclick="setActiveCatalogView('${opt.id}')">${opt.label}</button>`
+  )).join('');
+}
+async function setActiveCatalogView(view) {
+  const id = view === 'catalog-admin' ? 'new' : (view === 'fitflow' ? 'old' : view);
+  if (!FITFLOW_CATALOG_VIEW_IDS.includes(id)) return;
+  if (id === 'new' && !catalogViewMeta('new') && !catalogViewsState.views.new.available && !catalogMasterState.available) {
+    toast('Aún no hay catálogo publicado desde Catalog Admin','warn');
+    return;
+  }
+  LS._setLocal(FITFLOW_ACTIVE_CATALOG_KEY, id);
+  currentCatPath = [];
+  if (!catalogViewsState.views[id]?.loaded) {
+    showLoading(id === 'new' ? 'Cargando Catálogo Nuevo...' : 'Cargando Catálogo Antiguo...');
+    try { await ensureCatalogViewLoaded(id); }
+    finally { hideLoading(); }
+  }
+  renderCatalogSelector();
+  if (document.getElementById('pane-cats')?.classList.contains('act')) renderCatL1();
+  if (document.getElementById('pane-buscar')?.classList.contains('act')) renderSearch(document.getElementById('inp-buscar')?.value?.trim() || '');
+}
+function productForCatalogView(p={}) {
+  const view = activeCatalogView();
+  const state = catalogViewsState.views[view];
+  if (view === 'old' && !state?.loaded) return p;
+  const catalogItem = p.cod ? state?.byCode?.get(catalogCode(p.cod)) : null;
+  if (!catalogItem) return null;
+  const groups = Array.isArray(catalogItem.groups) ? catalogItem.groups.map(x=>String(x||'').trim()).filter(Boolean) : [];
+  const safeGroups = groups.length ? groups : [catalogItem.cat1, catalogItem.cat2].map(x=>String(x||'').trim()).filter(Boolean);
+  const finalGroups = safeGroups.length ? safeGroups : ['Sin clasificación'];
+  return {...p, groups:finalGroups, cat1:catalogItem.cat1 || finalGroups[0] || 'Sin clasificación', cat2:catalogItem.cat2 || finalGroups[1] || ''};
+}
+function activeCatalogProducts() {
+  const view = activeCatalogView();
+  const state = catalogViewsState.views[view];
+  if (view === 'old' && !state?.loaded) return prods;
+  return prods.map(productForCatalogView).filter(Boolean);
+}
 function productMatchesCatPath(p={}, path=[]) {
   const groups = productCatalogGroups(p);
   return path.every((value,idx)=>groups[idx] === value);
 }
 function productsForCatPath(path=[]) {
-  return prods.filter(p=>productMatchesCatPath(p,path));
+  return activeCatalogProducts().filter(p=>productMatchesCatPath(p,path));
 }
 function catChildren(path=[]) {
   const idx = path.length;
@@ -2674,6 +2775,7 @@ function renderCatPath(path=[]) {
   catLevel=currentCatPath.length;
   selCat1=currentCatPath[0] || '';
   updatePriceModeButtons();
+  renderCatalogSelector();
   document.getElementById('cat-back').classList.toggle('hidden', currentCatPath.length===0);
   document.getElementById('cat-breadcrumb').textContent=currentCatPath.length ? currentCatPath[currentCatPath.length-1] : 'Todas las categorías';
   const children = catChildren(currentCatPath);
@@ -5142,13 +5244,13 @@ function orderDetailPriceBlockHTML(grossPrice, className='') {
   const mode = priceViewMode();
   const gross = Math.round(Number(grossPrice)||0);
   if (mode === 'both') {
-    return `<span class="order-detail-price ${className}">
-      <span class="order-detail-value">${fmtPeso(grossToNet(gross))}</span>
+    return `<span class="order-detail-price both ${className}">
+      <span class="order-detail-net">${fmtPeso(grossToNet(gross))}</span>
       <span class="order-detail-gross">c/IVA <span class="order-detail-gross-value">${fmtPeso(gross)}</span></span>
     </span>`;
   }
   const value = mode === 'net' ? grossToNet(gross) : gross;
-  return `<span class="order-detail-price ${className}">
+  return `<span class="order-detail-price ${mode === 'net' ? 'net' : 'gross'} ${className}">
     <span class="order-detail-mode">${mode === 'net' ? 'Neto' : 'c/IVA'}</span>
     <span class="order-detail-value">${fmtPeso(value)}</span>
   </span>`;
@@ -5202,7 +5304,7 @@ function showOrderDetail(id) {
     ${sentLines?`<div style="font-size:12px;color:var(--text2);line-height:1.45;margin:8px 0;">${sentLines}</div>`:''}
     <div class="order-detail-items">${lines}</div>
     <div style="display:flex;justify-content:space-between;font-weight:800;font-size:15px;padding:8px 0;border-top:2px solid var(--border);">
-      <span>Total</span><span style="color:var(--navy)">${priceDuoHTML(o.total, '', {mode:'both', className:'total-price-duo'})}</span>
+      <span>Total</span><span style="color:var(--navy)">${priceDuoHTML(o.total, '', {className:'total-price-duo'})}</span>
     </div>
     ${o.paymentCondition?`<div style="font-size:12px;color:var(--text2);margin-top:6px;"><strong style="color:var(--text);">Condicion de pago:</strong> ${escEmailHtml(o.paymentCondition)}</div>`:''}
     ${o.clientContactReview?.diffs?.length?`<div style="font-size:12px;color:#92400e;background:#fff7ed;border:1px solid #fed7aa;border-radius:var(--rs);padding:8px;margin-top:6px;"><strong>Revisar maestro Sisgen:</strong><br>${escEmailHtml(clientContactReviewText(o.clientContactReview)).replace(/\r?\n/g,'<br>')}</div>`:''}
@@ -6240,7 +6342,69 @@ function catalogCode(v) {
 function normalizeProductNameForCompare(v='') {
   return String(v||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
 }
-async function loadCatalogMasterFromFirebase() {
+function buildCatalogMasterState(products=[], meta=null, error='') {
+  const byCode = new Map();
+  (products||[]).forEach(p => {
+    const code = catalogCode(p?.cod);
+    if (code && !byCode.has(code)) byCode.set(code, p);
+  });
+  return {available:!!products?.length, byCode, products:products||[], meta, error};
+}
+function catalogViewCacheKey(id) {
+  return `catalog_view_${id}_products`;
+}
+function catalogViewMeta(id) {
+  const views = catalogViewsState.meta?.views || LS.get('catalog_views_meta')?.views || [];
+  return views.find(v => v?.id === id) || null;
+}
+function buildCatalogViewState(id, products=[], meta=null, error='') {
+  const byCode = new Map();
+  (products||[]).forEach(p => {
+    const code = catalogCode(p?.cod);
+    if (code && !byCode.has(code)) byCode.set(code, p);
+  });
+  return {available:!!(products?.length || meta), loaded:!!products?.length, byCode, products:products||[], meta, error};
+}
+async function loadCatalogViewFromFirebase(id) {
+  const empty = buildCatalogViewState(id, [], catalogViewMeta(id), '');
+  if (!window._fbDB) return {...empty, error:'Firebase no disponible'};
+  const viewMeta = catalogViewMeta(id);
+  if (!viewMeta) {
+    if (id === 'new') {
+      const fallback = await loadCatalogMasterFromFirebase({useCache:true});
+      catalogMasterState = fallback.available ? fallback : catalogMasterState;
+      return buildCatalogViewState(id, fallback.products || [], fallback.meta || null, fallback.error || '');
+    }
+    return {...empty, available:true, loaded:false, error:'Sin metadata de vista; se usa agrupación comercial local'};
+  }
+  try {
+    const { getDoc, doc } = window._fbSDK;
+    const db = window._fbDB;
+    const collectionName = viewMeta.chunksCollection || (id === 'old' ? 'catalog_view_old_chunks_dev' : 'catalog_view_new_chunks_dev');
+    if (!viewMeta?.version || !viewMeta?.chunks) return {...empty, available:true, error:'Metadata de vista incompleta'};
+    const cacheKey = catalogViewCacheKey(id);
+    const localInfo = await getListCacheInfo(cacheKey);
+    const ready = cacheReadyReason(cacheKey, viewMeta, localInfo);
+    if (ready.ready) return buildCatalogViewState(id, localInfo.list, viewMeta, '');
+    const products = await fetchFirebaseChunks({db, getDoc, doc, collectionName, total:viewMeta.chunks, version:viewMeta.version, label:id === 'old' ? 'catalogo antiguo' : 'catalogo nuevo'});
+    if (!products?.length) return {...empty, available:true, error:'No se pudo descargar la vista'};
+    await setListCache(cacheKey, products, viewMeta.version);
+    LS._setLocal(`catalog_view_${id}_meta`, viewMeta);
+    return buildCatalogViewState(id, products, viewMeta, '');
+  } catch(e) {
+    return {...empty, available:!!viewMeta, error:e?.message || 'Error al leer vista de catalogo'};
+  }
+}
+async function ensureCatalogViewLoaded(id) {
+  if (!FITFLOW_CATALOG_VIEW_IDS.includes(id)) return catalogViewsState.views.old;
+  const current = catalogViewsState.views[id];
+  if (current?.loaded) return current;
+  const loaded = await loadCatalogViewFromFirebase(id);
+  catalogViewsState.views[id] = loaded;
+  return loaded;
+}
+async function loadCatalogMasterFromFirebase(opts={}) {
+  const useCache = opts.useCache !== false;
   const empty = {available:false, byCode:new Map(), products:[], meta:null, error:''};
   if (!window._fbDB) return {...empty, error:'Firebase no disponible'};
   try {
@@ -6250,17 +6414,48 @@ async function loadCatalogMasterFromFirebase() {
     if (!metaSnap.exists()) return {...empty, error:'No existe catalog_master_meta'};
     const meta = metaSnap.data();
     if (!meta?.version || !meta?.chunks) return {...empty, meta, error:'Metadata maestro incompleta'};
+    LS._setLocal('catalog_master_meta', meta);
+    if (useCache) {
+      const localInfo = await getListCacheInfo(FITFLOW_MASTER_CATALOG_CACHE_KEY);
+      const ready = cacheReadyReason(FITFLOW_MASTER_CATALOG_CACHE_KEY, meta, localInfo);
+      if (ready.ready) return buildCatalogMasterState(localInfo.list, meta, '');
+    }
     const products = await fetchFirebaseChunks({db, getDoc, doc, collectionName:'catalog_master_chunks_dev', total:meta.chunks, version:meta.version, label:'catalogo maestro'});
     if (!products?.length) return {...empty, meta, error:'No se pudo descargar catalogo maestro'};
-    const byCode = new Map();
-    products.forEach(p => {
-      const code = catalogCode(p?.cod);
-      if (code && !byCode.has(code)) byCode.set(code, p);
-    });
-    return {available:true, byCode, products, meta, error:''};
+    if (useCache) await setListCache(FITFLOW_MASTER_CATALOG_CACHE_KEY, products, meta.version);
+    return buildCatalogMasterState(products, meta, '');
   } catch(e) {
     return {...empty, error:e?.message || 'Error al leer catalogo maestro'};
   }
+}
+async function refreshCatalogViewsFromFirebase() {
+  if (window._fbDB) {
+    try {
+      const { getDoc, doc } = window._fbSDK;
+      const db = window._fbDB;
+      const viewsSnap = await getDoc(doc(db,'config_dev','catalog_views_meta'));
+      if (viewsSnap.exists() && Array.isArray(viewsSnap.data()?.views)) {
+        catalogViewsState.meta = viewsSnap.data();
+        LS._setLocal('catalog_views_meta', catalogViewsState.meta);
+        FITFLOW_CATALOG_VIEW_IDS.forEach(id => {
+          const viewMeta = catalogViewMeta(id);
+          catalogViewsState.views[id] = viewMeta
+            ? {...catalogViewsState.views[id], available:true, loaded:false, meta:viewMeta, error:''}
+            : {...catalogViewsState.views[id], available:id === 'old', loaded:false, meta:null, error:''};
+        });
+      }
+    } catch(e) {}
+  }
+  const active = activeCatalogView();
+  await ensureCatalogViewLoaded(active);
+  if (!catalogViewMeta('new')) {
+    const state = await loadCatalogMasterFromFirebase({useCache:true});
+    catalogMasterState = state.available ? state : {available:false, byCode:new Map(), products:[], meta:state.meta||null, error:state.error||''};
+    if (state.available && !catalogViewsState.views.new.loaded) catalogViewsState.views.new = buildCatalogViewState('new', state.products, state.meta, '');
+  }
+  if (!catalogViewsState.views.new.available && active === 'new') LS._setLocal(FITFLOW_ACTIVE_CATALOG_KEY, 'old');
+  renderCatalogSelector();
+  return catalogViewsState;
 }
 function parseProductRows(rows, catalogMaster={}) {
   const byCode = {};
