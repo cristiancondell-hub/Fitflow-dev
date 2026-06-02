@@ -3313,7 +3313,8 @@ function clientDetailsLine(c) {
     c.rut,
     c.direccion,
     c.comuna,
-    c.ciudad
+    c.ciudad,
+    clientSystemPaymentRaw(c) ? `Cond. pago: ${clientSystemPaymentRaw(c)}` : ''
   ].filter(Boolean).join(' · ');
 }
 function clientEmailBlock(c) {
@@ -3725,9 +3726,24 @@ function normalizePaymentCondition(v) {
   }
   return {name:String(v||'').trim(), codigo:''};
 }
+function paymentConditionCompareText(v='') {
+  return String(v||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+}
+function paymentConditionForName(name='') {
+  const target = paymentConditionCompareText(name);
+  return paymentConditions().find(x=>paymentConditionCompareText(x.name)===target) || null;
+}
 function paymentConditionCodeFor(name='') {
-  const target = String(name||'').trim();
-  return paymentConditions().find(x=>x.name===target)?.codigo || '';
+  return paymentConditionForName(name)?.codigo || '';
+}
+function clientSystemPaymentRaw(c=selectedClient) {
+  return String(c?.paymentCondition || c?.formadepag || c?.formaPago || c?.forma_de_pago || '').trim();
+}
+function clientSystemPaymentMatch(c=selectedClient) {
+  const raw = clientSystemPaymentRaw(c);
+  if (!raw) return {raw:'', condition:null, found:false};
+  const condition = paymentConditionForName(raw);
+  return {raw, condition, found:!!condition};
 }
 function renderPaymentConditionSelect() {
   const el=document.getElementById('cart-payment-condition');
@@ -3736,7 +3752,37 @@ function renderPaymentConditionSelect() {
   el.innerHTML = opts.map(v=>v ? `<option value="${escEmailHtml(v.name)}">${escEmailHtml(v.name)}</option>` : `<option value="">Seleccionar Cond. Pago</option>`).join('');
   el.value = currentPaymentCondition || '';
 }
-function setCurrentPaymentCondition(v='') { currentPaymentCondition = String(v||'').trim(); if (currentUser) saveCurrentCartDraft(); }
+let pendingPaymentConditionOverride = '';
+function setCurrentPaymentCondition(v='', opts={}) {
+  const next = String(v||'').trim();
+  const system = clientSystemPaymentMatch();
+  if (!opts.skipConfirm && system.found && currentPaymentCondition === system.condition.name && next !== system.condition.name) {
+    pendingPaymentConditionOverride = next;
+    renderPaymentConditionSelect();
+    openModal(`<div class="modal-title">Cambiar condición de pago</div>
+      <div class="modal-sub">La condición de pago del sistema para este cliente es <strong>${escEmailHtml(system.condition.name)}</strong>.</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.45;margin:8px 0;">¿Confirmas usar <strong style="color:var(--text);">${escEmailHtml(next || 'Sin condición seleccionada')}</strong> en este pedido?</div>
+      <div class="modal-btns" style="margin-top:14px;">
+        <button class="btn-confirm" onclick="confirmPaymentConditionOverride()">Confirmar cambio</button>
+        <button class="btn-cancel" onclick="cancelPaymentConditionOverride()">Cancelar</button>
+      </div>`);
+    return;
+  }
+  currentPaymentCondition = next;
+  renderPaymentConditionSelect();
+  if (currentUser) saveCurrentCartDraft();
+}
+function confirmPaymentConditionOverride() {
+  const next = pendingPaymentConditionOverride;
+  pendingPaymentConditionOverride = '';
+  closeModal();
+  setCurrentPaymentCondition(next, {skipConfirm:true});
+}
+function cancelPaymentConditionOverride() {
+  pendingPaymentConditionOverride = '';
+  closeModal();
+  renderPaymentConditionSelect();
+}
 const VALIDITY_DAY_OPTIONS = [7, 15, 30];
 function normalizeValidityDays(v) {
   const n = parseInt(v, 10);
@@ -5523,6 +5569,17 @@ function selectClient(c) {
     return;
   }
   selectedClient=c;
+  const systemPayment = clientSystemPaymentMatch(selectedClient);
+  if (systemPayment.raw) {
+    if (systemPayment.found) {
+      setCurrentPaymentCondition(systemPayment.condition.name, {skipConfirm:true});
+    } else {
+      setCurrentPaymentCondition('', {skipConfirm:true});
+      toast(`Condición de pago del cliente no está parametrizada en Admin: ${systemPayment.raw}`,'warn','long');
+    }
+  } else {
+    setCurrentPaymentCondition('', {skipConfirm:true});
+  }
   document.getElementById('cli-modal-overlay').classList.add('hidden');
   updateCartCliBar(); saveCurrentCartDraft(); toast(c.nombre+' seleccionado ✓','ok');
 }
@@ -6954,6 +7011,7 @@ function parseClientRows(rows) {
     const compact = String(rutRaw||'').replace(/[^0-9kK]/g,'');
     const email = normalizeEmail(rowVal(r,['CORREO','EMAIL','MAIL','correocont','correo contacto','email contacto']));
     const phone = normalizePhone(rowVal(r,['CELULAR','TELEFONO','TELÉFONO','MOVIL','MÓVIL','WHATSAPP','celular']));
+    const paymentCondition = String(rowVal(r,['formadepag','FORMADEPAG','FORMA DE PAGO','FORMA PAGO','CONDICION DE PAGO','CONDICIÓN DE PAGO'])||'').trim();
     return {
       rut: normalizeRut(rutRaw),
       nombre: String(rowVal(r,['NOMBRE','NOMBRE CLI','nombreclie','RAZON SOCIAL','CLIENTE','nombre'])||'').replace(/^\|+/,'').trim(),
@@ -6962,6 +7020,8 @@ function parseClientRows(rows) {
       ciudad: String(rowVal(r,['CIUDAD','CIUDAD CLIENTE','ciudad'])||'').trim(),
       email: isValidEmail(email) ? email : '',
       phone: isValidChilePhone(phone) ? phone : '',
+      paymentCondition,
+      formadepag:paymentCondition,
       _rutLen: compact.length
     };
   }).filter(c => {
