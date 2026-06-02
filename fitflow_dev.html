@@ -2741,10 +2741,12 @@ function productForCatalogView(p={}) {
   if (view === 'old' && !state?.loaded) return p;
   const catalogItem = p.cod ? state?.byCode?.get(catalogCode(p.cod)) : null;
   if (!catalogItem) return null;
-  const groups = Array.isArray(catalogItem.groups) ? catalogItem.groups.map(x=>String(x||'').trim()).filter(Boolean) : [];
+  const nodeId = catalogProductNodeId(catalogItem, state);
+  const nodeGroups = nodeId ? catalogNodePathLabels(state, nodeId) : [];
+  const groups = nodeGroups.length ? nodeGroups : (Array.isArray(catalogItem.groups) ? catalogItem.groups.map(x=>String(x||'').trim()).filter(Boolean) : []);
   const safeGroups = groups.length ? groups : [catalogItem.cat1, catalogItem.cat2].map(x=>String(x||'').trim()).filter(Boolean);
   const finalGroups = safeGroups.length ? safeGroups : ['Sin clasificación'];
-  return {...p, groups:finalGroups, cat1:catalogItem.cat1 || finalGroups[0] || 'Sin clasificación', cat2:catalogItem.cat2 || finalGroups[1] || ''};
+  return {...p, groups:finalGroups, cat1:catalogItem.cat1 || finalGroups[0] || 'Sin clasificación', cat2:catalogItem.cat2 || finalGroups[1] || '', nodeId, groupNodeIds:catalogItem.groupNodeIds||[]};
 }
 function activeCatalogProducts() {
   const view = activeCatalogView();
@@ -2759,7 +2761,42 @@ function productMatchesCatPath(p={}, path=[]) {
 function productsForCatPath(path=[]) {
   return activeCatalogProducts().filter(p=>productMatchesCatPath(p,path));
 }
+function activeCatalogTreeState() {
+  const state = catalogViewsState.views[activeCatalogView()];
+  return state?.usesNodes && state.loaded ? state : null;
+}
+function catalogNodePathLabels(state, nodeId) {
+  const ids = state?.pathIdsByNode?.get(nodeId) || [];
+  return ids.map(id => state.nodeMap?.get(id)?.name).filter(Boolean);
+}
+function catalogGroupOrderValue(value) {
+  const raw = Array.isArray(value) ? value[value.length-1] : value;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+function productsForCatNode(nodeId='') {
+  const state = activeCatalogTreeState();
+  if (!state) return [];
+  const list = state.productsByNode?.get(nodeId || '') || [];
+  return list
+    .map(item => productForCatalogView(prods.find(p => p.cod && catalogCode(p.cod) === catalogCode(item.cod)) || {}))
+    .filter(p => p?.cod || p?.nom)
+    .sort((a,b) => {
+      const ai = state.byCode.get(catalogCode(a.cod));
+      const bi = state.byCode.get(catalogCode(b.cod));
+      const ao = catalogGroupOrderValue(ai?.groupOrder);
+      const bo = catalogGroupOrderValue(bi?.groupOrder);
+      if (ao !== null && bo !== null && ao !== bo) return ao - bo;
+      if ((ao !== null) !== (bo !== null)) return ao !== null ? -1 : 1;
+      return String(a.nom||'').localeCompare(String(b.nom||''), 'es', {numeric:true, sensitivity:'base'});
+    });
+}
 function catChildren(path=[]) {
+  const tree = activeCatalogTreeState();
+  if (tree) {
+    const parentId = path.length ? path[path.length-1] : '';
+    return (tree.childrenByParent?.get(parentId) || []).map(node => [node.name, tree.productCountsByNode?.get(node.id) || 0, node.id]);
+  }
   const idx = path.length;
   const children = new Map();
   productsForCatPath(path).forEach(p=>{
@@ -2774,14 +2811,17 @@ function renderCatPath(path=[]) {
   currentCatPath=[...path];
   catLevel=currentCatPath.length;
   selCat1=currentCatPath[0] || '';
+  const tree = activeCatalogTreeState();
   updatePriceModeButtons();
   renderCatalogSelector();
   document.getElementById('cat-back').classList.toggle('hidden', currentCatPath.length===0);
-  document.getElementById('cat-breadcrumb').textContent=currentCatPath.length ? currentCatPath[currentCatPath.length-1] : 'Todas las categorías';
+  const currentNode = tree && currentCatPath.length ? tree.nodeMap?.get(currentCatPath[currentCatPath.length-1]) : null;
+  document.getElementById('cat-breadcrumb').textContent=currentNode?.name || (currentCatPath.length ? currentCatPath[currentCatPath.length-1] : 'Todas las categorías');
   const children = catChildren(currentCatPath);
   if (children.length) {
-    document.getElementById('cat-list').innerHTML=children.map(([label,n])=>{
-      const nextPath = JSON.stringify([...currentCatPath,label]).replace(/'/g,'&#39;');
+    document.getElementById('cat-list').innerHTML=children.map(([label,n,nodeId])=>{
+      const nextValue = nodeId || label;
+      const nextPath = JSON.stringify([...currentCatPath,nextValue]).replace(/'/g,'&#39;');
       return `<div class="cat-item" onclick='renderCatPath(${nextPath})'>
       <div class="cat-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7z"/></svg></div>
       <span class="cat-item-label">${label}</span><span class="cat-item-count">${n}</span>
@@ -2790,7 +2830,7 @@ function renderCatPath(path=[]) {
     }).join('');
     return;
   }
-  const leafProducts = productsForCatPath(currentCatPath);
+  const leafProducts = tree ? productsForCatNode(currentCatPath[currentCatPath.length-1] || '') : productsForCatPath(currentCatPath);
   document.getElementById('cat-list').innerHTML=leafProducts.length
     ? leafProducts.map(p=>prodCardHTML(p)).join('')
     : `<div class="empty-state"><p>Sin productos</p><small>No hay productos en esta agrupación</small></div>`;
@@ -6357,13 +6397,94 @@ function catalogViewMeta(id) {
   const views = catalogViewsState.meta?.views || LS.get('catalog_views_meta')?.views || [];
   return views.find(v => v?.id === id) || null;
 }
+function normalizeCatalogNode(node={}) {
+  const id = String(node.id || '').trim();
+  if (!id) return null;
+  const order = Number(node.order);
+  return {
+    id,
+    name:String(node.name || node.code || id).trim() || id,
+    code:String(node.code || '').trim(),
+    level:Number.isFinite(Number(node.level)) ? Number(node.level) : 0,
+    parentId:String(node.parentId || '').trim(),
+    order:Number.isFinite(order) ? order : null,
+    virtual:!!node.virtual
+  };
+}
+function unclassifiedCatalogNode() {
+  return {id:'__unclassified__', name:'No clasificados', code:'', level:0, parentId:'', order:999999, virtual:true};
+}
+function compareCatalogNodes(a={}, b={}) {
+  const ao = Number(a.order);
+  const bo = Number(b.order);
+  const hasA = Number.isFinite(ao);
+  const hasB = Number.isFinite(bo);
+  if (hasA && hasB && ao !== bo) return ao - bo;
+  if (hasA !== hasB) return hasA ? -1 : 1;
+  return String(a.name || '').localeCompare(String(b.name || ''), 'es', {numeric:true, sensitivity:'base'});
+}
+function catalogProductNodeId(item={}, state={}) {
+  if (item?.unclassified) return '__unclassified__';
+  const direct = String(item?.nodeId || '').trim();
+  if (direct && state.nodeMap?.has(direct)) return direct;
+  const ids = Array.isArray(item?.groupNodeIds) ? item.groupNodeIds.map(x=>String(x||'').trim()).filter(Boolean) : [];
+  for (let i=ids.length-1; i>=0; i--) {
+    if (state.nodeMap?.has(ids[i])) return ids[i];
+  }
+  return state.usesNodes ? '__unclassified__' : '';
+}
+function catalogNodePathIds(state={}, nodeId='') {
+  const out = [];
+  const seen = new Set();
+  let current = String(nodeId||'').trim();
+  while (current && state.nodeMap?.has(current) && !seen.has(current)) {
+    seen.add(current);
+    out.unshift(current);
+    current = String(state.nodeMap.get(current)?.parentId || '').trim();
+  }
+  return out;
+}
 function buildCatalogViewState(id, products=[], meta=null, error='') {
   const byCode = new Map();
   (products||[]).forEach(p => {
     const code = catalogCode(p?.cod);
     if (code && !byCode.has(code)) byCode.set(code, p);
   });
-  return {available:!!(products?.length || meta), loaded:!!products?.length, byCode, products:products||[], meta, error};
+  const rawNodes = Array.isArray(meta?.nodes) ? meta.nodes.map(normalizeCatalogNode).filter(Boolean) : [];
+  const usesNodes = rawNodes.length > 0;
+  const nodeMap = new Map(rawNodes.map(node => [node.id, node]));
+  const productsByNode = new Map();
+  if (usesNodes) {
+    const needsUnclassified = [...byCode.values()].some(item => item?.unclassified || !String(item?.nodeId || '').trim() || !nodeMap.has(String(item?.nodeId || '').trim()));
+    if ((needsUnclassified || nodeMap.has('__unclassified__')) && !nodeMap.has('__unclassified__')) {
+      nodeMap.set('__unclassified__', unclassifiedCatalogNode());
+    } else if (nodeMap.has('__unclassified__')) {
+      nodeMap.set('__unclassified__', {...unclassifiedCatalogNode(), ...nodeMap.get('__unclassified__'), id:'__unclassified__', name:nodeMap.get('__unclassified__')?.name || 'No clasificados', order:Number.isFinite(Number(nodeMap.get('__unclassified__')?.order)) ? Number(nodeMap.get('__unclassified__')?.order) : 999999, virtual:true});
+    }
+  }
+  const childrenByParent = new Map();
+  if (usesNodes) {
+    [...nodeMap.values()].forEach(node => {
+      const parentId = nodeMap.has(node.parentId) ? node.parentId : '';
+      node.parentId = parentId;
+      if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+      childrenByParent.get(parentId).push(node);
+    });
+    childrenByParent.forEach(children => children.sort(compareCatalogNodes));
+  }
+  const state = {available:!!(products?.length || meta), loaded:!!products?.length, byCode, products:products||[], meta, error, usesNodes, nodes:[...nodeMap.values()], nodeMap, childrenByParent, productsByNode, pathIdsByNode:new Map(), productCountsByNode:new Map()};
+  if (usesNodes) {
+    state.nodes.forEach(node => state.pathIdsByNode.set(node.id, catalogNodePathIds(state, node.id)));
+    [...byCode.values()].forEach(item => {
+      const nodeId = catalogProductNodeId(item, state);
+      if (!nodeId) return;
+      if (!productsByNode.has(nodeId)) productsByNode.set(nodeId, []);
+      productsByNode.get(nodeId).push(item);
+      const pathIds = state.pathIdsByNode.get(nodeId) || [nodeId];
+      pathIds.forEach(id => state.productCountsByNode.set(id, (state.productCountsByNode.get(id)||0)+1));
+    });
+  }
+  return state;
 }
 async function loadCatalogViewFromFirebase(id) {
   const empty = buildCatalogViewState(id, [], catalogViewMeta(id), '');
