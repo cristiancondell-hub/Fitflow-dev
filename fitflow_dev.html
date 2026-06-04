@@ -2269,18 +2269,14 @@ async function revalidateCurrentSession(opts={}) {
 async function doGoogleLogin() {
   const err = document.getElementById('pin-err');
   if (err) err.textContent = '';
-  if (!window._fbAuth || !window._fbGoogleProvider || (!window._fbSDK?.signInWithPopup && !window._fbSDK?.signInWithRedirect)) {
+  if (!window._fbAuth || !window._fbGoogleProvider || !window._fbSDK?.signInWithPopup) {
     if (err) err.textContent = 'Google Login no está disponible todavía';
     toast('Google Login no está disponible todavía','err');
     return;
   }
   try {
     showLoading('Validando usuario...');
-    if (shouldUseGoogleRedirectLogin() && window._fbSDK?.signInWithRedirect) {
-      localStorage.setItem('ff2_google_redirect_pending', '1');
-      await window._fbSDK.signInWithRedirect(window._fbAuth, window._fbGoogleProvider);
-      return;
-    }
+    localStorage.removeItem('ff2_google_redirect_pending');
     const result = await window._fbSDK.signInWithPopup(window._fbAuth, window._fbGoogleProvider);
     hideLoading();
     await completeGoogleLoginResult(result);
@@ -2295,10 +2291,7 @@ async function doGoogleLogin() {
 }
 
 function shouldUseGoogleRedirectLogin() {
-  const ua = navigator.userAgent || '';
-  const appleTouch = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const safari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|Edg|OPR/i.test(ua);
-  return appleTouch || safari;
+  return false;
 }
 
 function googleLoginErrorMessage(e={}) {
@@ -2342,6 +2335,8 @@ async function handleGoogleRedirectLoginResult() {
     if (result?.user) {
       localStorage.removeItem('ff2_google_redirect_pending');
       await completeGoogleLoginResult(result);
+    } else if (pending) {
+      localStorage.removeItem('ff2_google_redirect_pending');
     }
   } catch(e) {
     if (pending) hideLoading();
