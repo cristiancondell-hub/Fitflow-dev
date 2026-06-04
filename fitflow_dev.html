@@ -21,9 +21,9 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);}
-#app{display:flex;flex-direction:column;height:100dvh;width:100%;max-width:480px;margin:0 auto;}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;}
 @media (min-width:700px){
-  #app{max-width:min(calc(100vw - 48px),980px);box-shadow:0 0 0 1px rgba(13,43,110,.06),0 18px 48px rgba(13,43,110,.16);}
+  #app{max-width:720px;box-shadow:0 0 0 1px rgba(13,43,110,.06),0 18px 48px rgba(13,43,110,.16);}
   #hdr{padding-left:14px;padding-right:14px;}
   .hdr-uname{max-width:150px;}
   .prod-list{gap:9px;padding-left:4px;padding-right:4px;}
@@ -42,7 +42,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
   .login-box{max-width:400px;}
 }
 @media (min-width:1000px){
-  #app{max-width:min(calc(100vw - 120px),1280px);}
+  #app{max-width:920px;}
   #hdr{padding-left:18px;padding-right:18px;}
   .prod-card,.cat-item,.hist-card,.cart-card{padding-left:18px;padding-right:18px;}
   .cat-list,.hist-list,.cart-items-wrap{padding-left:24px;padding-right:24px;}
@@ -173,14 +173,14 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .cart-cli-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
 .cart-cli-name{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cart-cli-details{font-size:11px;color:var(--text3);font-weight:600;line-height:1.25;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.cart-cli-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;max-width:46%;min-width:128px;}
+.cart-cli-side{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;max-width:42%;}
 .cart-cli-hours-line{display:flex;align-items:center;justify-content:flex-end;gap:5px;max-width:100%;border:none;background:transparent;padding:0;font-family:'Barlow',sans-serif;cursor:pointer;}
-.cart-cli-hours-text{font-size:11px;color:var(--text3);font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:clamp(92px,18vw,210px);text-align:left;}
+.cart-cli-hours-text{font-size:11px;color:var(--text3);font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;}
 .cart-cli-hours-icon{width:18px;height:18px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--navy);display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;}
 .cart-cli-hours-icon svg{width:12px;height:12px;color:currentColor;}
 .cart-cli-hours-line.has-hours .cart-cli-hours-icon{border-color:rgba(15,121,85,.35);color:var(--green);background:#f4fbf8;}
-.cart-cli-action{font-size:11px;font-weight:800;color:var(--text2);white-space:nowrap;flex-shrink:0;border:1px solid var(--border);border-radius:999px;background:#f8faff;padding:4px 8px;line-height:1;}
-.cart-cli-bar.ok .cart-cli-action{color:var(--text2);}
+.cart-cli-action{font-size:12px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;}
+.cart-cli-bar.ok .cart-cli-action{color:var(--text3);}
 .business-hours-options{display:flex;flex-direction:column;gap:8px;margin:10px 0;}
 .business-hours-option{width:100%;border:1px solid var(--border);background:#fff;border-radius:10px;padding:11px 12px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:800;color:var(--text);text-align:left;cursor:pointer;}
 .business-hours-option.active{border-color:var(--green);box-shadow:0 0 0 2px rgba(15,121,85,.12);color:var(--green);}
@@ -554,10 +554,10 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
         <div class="cart-cli-side">
           <span class="cart-cli-action" id="cart-cli-action">Seleccionar →</span>
           <button class="cart-cli-hours-line" id="cart-cli-hours-line" onclick="event.stopPropagation();openClientBusinessHoursModal()" title="Horario de atención" aria-label="Horario de atención">
-            <span class="cart-cli-hours-text" id="cart-cli-hours-text"></span>
             <span class="cart-cli-hours-icon" id="cart-cli-hours-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </span>
+            <span class="cart-cli-hours-text" id="cart-cli-hours-text"></span>
           </button>
         </div>
       </div>
@@ -2276,77 +2276,32 @@ async function doGoogleLogin() {
   }
   try {
     showLoading('Validando usuario...');
-    localStorage.removeItem('ff2_google_redirect_pending');
     const result = await window._fbSDK.signInWithPopup(window._fbAuth, window._fbGoogleProvider);
+    const email = normalizeEmail(result?.user?.email || '');
     hideLoading();
-    await completeGoogleLoginResult(result);
+    if (!email) {
+      if (err) err.textContent = 'Google no entregó correo';
+      return;
+    }
+    const authorized = findAuthorizedVendorByEmail(email);
+    if (!authorized) {
+      await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
+      if (err) err.textContent = 'Correo no autorizado en FitFlow';
+      toast('Correo Google no autorizado en Admin','err');
+      return;
+    }
+    enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email, photoURL:result?.user?.photoURL || ''});
   } catch(e) {
     hideLoading();
-    localStorage.removeItem('ff2_google_redirect_pending');
-    const msg = googleLoginErrorMessage(e);
-    console.log('Google login error:', e?.code || '', e?.message || e);
+    const code = e?.code || '';
+    const msg = code === 'auth/popup-closed-by-user' ? 'Ingreso Google cancelado'
+      : code === 'auth/unauthorized-domain' ? 'Dominio no autorizado en Firebase Auth'
+      : code === 'auth/popup-blocked' ? 'Ventana Google bloqueada por el navegador'
+      : code === 'auth/operation-not-allowed' ? 'Google no está habilitado en Firebase Auth'
+      : code ? `Google Login: ${code}` : 'No se pudo ingresar con Google';
+    console.log('Google login error:', code, e?.message || e);
     if (err) err.textContent = msg;
     toast(msg,'warn');
-  }
-}
-
-function shouldUseGoogleRedirectLogin() {
-  return false;
-}
-
-function googleLoginErrorMessage(e={}) {
-  const code = e?.code || '';
-  const text = String(e?.message || '').toLowerCase();
-  if (code === 'auth/popup-closed-by-user') return 'Ingreso Google cancelado';
-  if (code === 'auth/unauthorized-domain') return 'Dominio no autorizado en Firebase Auth';
-  if (code === 'auth/popup-blocked') return 'Ventana Google bloqueada por el navegador';
-  if (code === 'auth/operation-not-allowed') return 'Google no está habilitado en Firebase Auth';
-  if (text.includes('missing initial state') || text.includes('storage') || code === 'auth/web-storage-unsupported') return 'Safari no pudo completar Google Login. Vuelve a intentar en la misma pestaña.';
-  return code ? `Google Login: ${code}` : 'No se pudo ingresar con Google';
-}
-
-async function completeGoogleLoginResult(result) {
-  const email = normalizeEmail(result?.user?.email || '');
-  if (!email) {
-    const err = document.getElementById('pin-err');
-    if (err) err.textContent = 'Google no entregó correo';
-    return false;
-  }
-  const authResult = await validateFitFlowSessionEmail(email, {provider:'google'});
-  if (!authResult.ok) {
-    await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
-    const err = document.getElementById('pin-err');
-    const msg = authResult.reason === 'no_autorizado' ? 'Correo no autorizado en FitFlow' : 'No se pudo validar el correo Google en FitFlow';
-    if (err) err.textContent = msg;
-    toast(msg,'err');
-    return false;
-  }
-  enterWithVendor(authResult.vendor, authResult.idx, {provider:'google', email, photoURL:result?.user?.photoURL || '', lastValidatedAt:authResult.lastValidatedAt || Date.now()});
-  return true;
-}
-
-async function handleGoogleRedirectLoginResult() {
-  if (!window._fbAuth || !window._fbSDK?.getRedirectResult) return;
-  const pending = localStorage.getItem('ff2_google_redirect_pending') === '1';
-  try {
-    if (pending) showLoading('Completando ingreso Google...');
-    const result = await window._fbSDK.getRedirectResult(window._fbAuth);
-    if (pending) hideLoading();
-    if (result?.user) {
-      localStorage.removeItem('ff2_google_redirect_pending');
-      await completeGoogleLoginResult(result);
-    } else if (pending) {
-      localStorage.removeItem('ff2_google_redirect_pending');
-    }
-  } catch(e) {
-    if (pending) hideLoading();
-    localStorage.removeItem('ff2_google_redirect_pending');
-    await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
-    const msg = googleLoginErrorMessage(e);
-    const err = document.getElementById('pin-err');
-    if (err) err.textContent = msg;
-    toast(msg,'warn','long');
-    console.log('Google redirect error:', e?.code || '', e?.message || e);
   }
 }
 
@@ -7637,7 +7592,7 @@ updatePriceModeButtons();
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, deleteDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyC0KNVxpJGnwA5RKLWheZL1h8zPqfC4GB0",
@@ -7657,11 +7612,10 @@ updatePriceModeButtons();
   window._fbDB  = db;
   window._fbAuth = auth;
   window._fbGoogleProvider = googleProvider;
-  window._fbSDK = { getDoc, setDoc, deleteDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
+  window._fbSDK = { getDoc, setDoc, deleteDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
 
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
-  if (typeof preloadLoginConfig === 'function') await preloadLoginConfig();
-  if (typeof handleGoogleRedirectLoginResult === 'function') await handleGoogleRedirectLoginResult();
+  if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
   if (typeof handleFirebaseAuthAction === 'function') handleFirebaseAuthAction();
   onAuthStateChanged(auth, user => {
     if (user) {
