@@ -21,9 +21,9 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);}
-#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;}
+#app{display:flex;flex-direction:column;height:100dvh;width:100%;max-width:480px;margin:0 auto;}
 @media (min-width:700px){
-  #app{max-width:720px;box-shadow:0 0 0 1px rgba(13,43,110,.06),0 18px 48px rgba(13,43,110,.16);}
+  #app{max-width:min(calc(100vw - 48px),980px);box-shadow:0 0 0 1px rgba(13,43,110,.06),0 18px 48px rgba(13,43,110,.16);}
   #hdr{padding-left:14px;padding-right:14px;}
   .hdr-uname{max-width:150px;}
   .prod-list{gap:9px;padding-left:4px;padding-right:4px;}
@@ -42,7 +42,7 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
   .login-box{max-width:400px;}
 }
 @media (min-width:1000px){
-  #app{max-width:920px;}
+  #app{max-width:min(calc(100vw - 120px),1280px);}
   #hdr{padding-left:18px;padding-right:18px;}
   .prod-card,.cat-item,.hist-card,.cart-card{padding-left:18px;padding-right:18px;}
   .cat-list,.hist-list,.cart-items-wrap{padding-left:24px;padding-right:24px;}
@@ -173,8 +173,17 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
 .cart-cli-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;}
 .cart-cli-name{font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cart-cli-details{font-size:11px;color:var(--text3);font-weight:600;line-height:1.25;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.cart-cli-action{font-size:12px;font-weight:700;color:var(--orange);white-space:nowrap;flex-shrink:0;}
-.cart-cli-bar.ok .cart-cli-action{color:var(--text3);}
+.cart-cli-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;max-width:46%;min-width:128px;}
+.cart-cli-hours-line{display:flex;align-items:center;justify-content:flex-end;gap:5px;max-width:100%;border:none;background:transparent;padding:0;font-family:'Barlow',sans-serif;cursor:pointer;}
+.cart-cli-hours-text{font-size:11px;color:var(--text3);font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:clamp(92px,18vw,210px);text-align:left;}
+.cart-cli-hours-icon{width:18px;height:18px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--navy);display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;}
+.cart-cli-hours-icon svg{width:12px;height:12px;color:currentColor;}
+.cart-cli-hours-line.has-hours .cart-cli-hours-icon{border-color:rgba(15,121,85,.35);color:var(--green);background:#f4fbf8;}
+.cart-cli-action{font-size:11px;font-weight:800;color:var(--text2);white-space:nowrap;flex-shrink:0;border:1px solid var(--border);border-radius:999px;background:#f8faff;padding:4px 8px;line-height:1;}
+.cart-cli-bar.ok .cart-cli-action{color:var(--text2);}
+.business-hours-options{display:flex;flex-direction:column;gap:8px;margin:10px 0;}
+.business-hours-option{width:100%;border:1px solid var(--border);background:#fff;border-radius:10px;padding:11px 12px;font-family:'Barlow',sans-serif;font-size:14px;font-weight:800;color:var(--text);text-align:left;cursor:pointer;}
+.business-hours-option.active{border-color:var(--green);box-shadow:0 0 0 2px rgba(15,121,85,.12);color:var(--green);}
 .cart-items-wrap{flex:1;overflow-y:auto;padding:10px 12px 0;}
 .cart-card{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:11px 13px;margin-bottom:8px;}
 .cart-card-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;}
@@ -542,7 +551,15 @@ html,body{height:100%;overflow:hidden;font-family:'Barlow',sans-serif;background
           <div class="cart-cli-name" id="cart-cli-name">Sin cliente — toca para seleccionar</div>
           <div class="cart-cli-details" id="cart-cli-details"></div>
         </div>
-        <span class="cart-cli-action" id="cart-cli-action">Seleccionar →</span>
+        <div class="cart-cli-side">
+          <span class="cart-cli-action" id="cart-cli-action">Seleccionar →</span>
+          <button class="cart-cli-hours-line" id="cart-cli-hours-line" onclick="event.stopPropagation();openClientBusinessHoursModal()" title="Horario de atención" aria-label="Horario de atención">
+            <span class="cart-cli-hours-text" id="cart-cli-hours-text"></span>
+            <span class="cart-cli-hours-icon" id="cart-cli-hours-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </span>
+          </button>
+        </div>
       </div>
       <div class="cart-price-mode-row"><button class="price-mode-btn" onclick="cyclePriceViewMode(event)"></button></div>
       <div class="cart-items-wrap" id="cart-items-wrap"></div>
@@ -1855,28 +1872,67 @@ function updateProductLogUI() {
 function updateClientLogUI() {
   const el = document.getElementById('adm-cli-log');
   const log = LS.get('client_import_log');
-  if (el && log) el.textContent = `${log.loaded||0} cargados · ${log.invalidRows||0} omitidos`;
+  if (el && log) el.textContent = `${log.loaded||0} cargados · ${log.invalidRows||0} omitidos · ${log.warningRows||0} advertencias`;
 }
 function showClientImportLog() {
   if (!requireAdminAccess()) return;
   const log = LS.get('client_import_log');
   if (!log) { toast('Aun no hay log de clientes','warn'); return; }
-  const rows = (log.rows||[]).slice(0,80).map(r=>`<tr><td>${escEmailHtml(r.tipo)}</td><td>${escEmailHtml(r.fila||'')}</td><td>${escEmailHtml(r.rut||'')}</td><td>${escEmailHtml(r.nombre||'')}</td><td>${escEmailHtml(r.detalle||'')}</td></tr>`).join('');
+  const rows = (log.rows||[]).slice(0,200).map(r=>`<tr><td>${escEmailHtml(r.tipo)}</td><td>${escEmailHtml(r.fila||'')}</td><td>${escEmailHtml(r.rut||'')}</td><td>${escEmailHtml(r.nombre||'')}</td><td>${escEmailHtml(r.formadepag||'')}</td><td>${escEmailHtml(r.detalle||'')}</td></tr>`).join('');
   openModal(`<div class="modal-title">Log clientes</div>
   <div class="modal-sub">${escEmailHtml(log.fileName||'Archivo')} · ${formatClientUpdatedAt(log.updatedAt)}</div>
   <div style="font-size:12px;color:var(--text2);line-height:1.5;margin:10px 0;">
     <div><strong>Publicados:</strong> ${log.loaded||0}</div>
-    ${log.inputLoaded ? `<div><strong>Procesados antes de reglas:</strong> ${log.inputLoaded||0}</div>` : ''}
+    <div><strong>Filas archivo:</strong> ${log.totalRows||0}</div>
     <div><strong>Filas omitidas:</strong> ${log.invalidRows||0}</div>
+    <div><strong>Advertencias:</strong> ${log.warningRows||0}</div>
+    <div><strong>RUT duplicado:</strong> ${log.duplicateRows||0}</div>
+    <div><strong>Correos inválidos:</strong> ${log.invalidEmails||0} · <strong>Teléfonos inválidos:</strong> ${log.invalidPhones||0}</div>
+    <div><strong>Cond. pago no parametrizada:</strong> ${log.paymentConditionNotFound||0}</div>
     <div><strong>Usuario:</strong> ${escEmailHtml(log.updatedBy||'')}</div>
   </div>
   <div style="font-size:11px;color:var(--text2);max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:var(--rs);">
     <table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="background:var(--bg);text-align:left;"><th>Tipo</th><th>Fila</th><th>RUT</th><th>Cliente</th><th>Detalle</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" style="padding:8px;">Sin observaciones</td></tr>'}</tbody>
+      <thead><tr style="background:var(--bg);text-align:left;"><th>Tipo</th><th>Fila</th><th>RUT</th><th>Cliente</th><th>Cond. pago</th><th>Detalle</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" style="padding:8px;">Sin observaciones</td></tr>'}</tbody>
     </table>
   </div>
-  <div class="modal-btns" style="margin-top:14px;"><button class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`);
+  <div class="modal-btns" style="margin-top:14px;"><button class="btn-confirm" onclick="downloadClientImportLog()">Descargar Excel</button><button class="btn-cancel" onclick="showClientImportLogText()">Ver datos</button><button class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`);
+}
+function clientImportLogRows() {
+  const log = LS.get('client_import_log');
+  if (!log) return null;
+  const headers=['tipo','fila','rut','nombre','direccion','comuna','ciudad','email','phone','formadepag','detalle','archivo','actualizado','usuario'];
+  const extras = {archivo:log.fileName||'', actualizado:log.updatedAt||'', usuario:log.updatedBy||''};
+  return {log,headers,rows:(log.rows||[]).map(r=>headers.map(h=>r[h] ?? extras[h] ?? ''))};
+}
+function downloadClientImportLog() {
+  if (!requireAdminAccess()) return;
+  const data = clientImportLogRows();
+  if (!data) { toast('Aun no hay log de clientes','warn'); return; }
+  const escHtml=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const table = `<html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>${data.headers.map(h=>`<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(row=>`<tr>${row.map(v=>`<td>${escHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
+  const blob=new Blob(['\ufeff'+table],{type:'application/vnd.ms-excel;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='log_clientes_'+new Date().toISOString().slice(0,10)+'.xls';
+  a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1500);
+  toast('Descarga preparada ✓','ok');
+}
+function showClientImportLogText() {
+  if (!requireAdminAccess()) return;
+  const data = clientImportLogRows();
+  if (!data) { toast('Aun no hay log de clientes','warn'); return; }
+  const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv=[data.headers.join(';')].concat(data.rows.map(row=>row.map(esc).join(';'))).join('\n');
+  openModal(`<div class="modal-title">Datos del log clientes</div>
+  <div class="modal-sub">Si el navegador no descarga, selecciona este texto y guárdalo como .csv</div>
+  <textarea class="modal-inp" style="height:260px;font-family:monospace;font-size:11px;white-space:pre;overflow:auto;">${csv.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>
+  <div class="modal-btns"><button class="btn-cancel" onclick="showClientImportLog()">Volver</button><button class="btn-cancel" onclick="closeModal()">Cerrar</button></div>`);
 }
 function showProductImportLog() {
   if (!requireAdminAccess()) return;
@@ -2213,39 +2269,88 @@ async function revalidateCurrentSession(opts={}) {
 async function doGoogleLogin() {
   const err = document.getElementById('pin-err');
   if (err) err.textContent = '';
-  if (!window._fbAuth || !window._fbGoogleProvider || !window._fbSDK?.signInWithPopup) {
+  if (!window._fbAuth || !window._fbGoogleProvider || (!window._fbSDK?.signInWithPopup && !window._fbSDK?.signInWithRedirect)) {
     if (err) err.textContent = 'Google Login no está disponible todavía';
     toast('Google Login no está disponible todavía','err');
     return;
   }
   try {
     showLoading('Validando usuario...');
+    if (shouldUseGoogleRedirectLogin() && window._fbSDK?.signInWithRedirect) {
+      localStorage.setItem('ff2_google_redirect_pending', '1');
+      await window._fbSDK.signInWithRedirect(window._fbAuth, window._fbGoogleProvider);
+      return;
+    }
     const result = await window._fbSDK.signInWithPopup(window._fbAuth, window._fbGoogleProvider);
-    const email = normalizeEmail(result?.user?.email || '');
     hideLoading();
-    if (!email) {
-      if (err) err.textContent = 'Google no entregó correo';
-      return;
-    }
-    const authorized = findAuthorizedVendorByEmail(email);
-    if (!authorized) {
-      await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
-      if (err) err.textContent = 'Correo no autorizado en FitFlow';
-      toast('Correo Google no autorizado en Admin','err');
-      return;
-    }
-    enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email, photoURL:result?.user?.photoURL || ''});
+    await completeGoogleLoginResult(result);
   } catch(e) {
     hideLoading();
-    const code = e?.code || '';
-    const msg = code === 'auth/popup-closed-by-user' ? 'Ingreso Google cancelado'
-      : code === 'auth/unauthorized-domain' ? 'Dominio no autorizado en Firebase Auth'
-      : code === 'auth/popup-blocked' ? 'Ventana Google bloqueada por el navegador'
-      : code === 'auth/operation-not-allowed' ? 'Google no está habilitado en Firebase Auth'
-      : code ? `Google Login: ${code}` : 'No se pudo ingresar con Google';
-    console.log('Google login error:', code, e?.message || e);
+    localStorage.removeItem('ff2_google_redirect_pending');
+    const msg = googleLoginErrorMessage(e);
+    console.log('Google login error:', e?.code || '', e?.message || e);
     if (err) err.textContent = msg;
     toast(msg,'warn');
+  }
+}
+
+function shouldUseGoogleRedirectLogin() {
+  const ua = navigator.userAgent || '';
+  const appleTouch = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const safari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS|Edg|OPR/i.test(ua);
+  return appleTouch || safari;
+}
+
+function googleLoginErrorMessage(e={}) {
+  const code = e?.code || '';
+  const text = String(e?.message || '').toLowerCase();
+  if (code === 'auth/popup-closed-by-user') return 'Ingreso Google cancelado';
+  if (code === 'auth/unauthorized-domain') return 'Dominio no autorizado en Firebase Auth';
+  if (code === 'auth/popup-blocked') return 'Ventana Google bloqueada por el navegador';
+  if (code === 'auth/operation-not-allowed') return 'Google no está habilitado en Firebase Auth';
+  if (text.includes('missing initial state') || text.includes('storage') || code === 'auth/web-storage-unsupported') return 'Safari no pudo completar Google Login. Vuelve a intentar en la misma pestaña.';
+  return code ? `Google Login: ${code}` : 'No se pudo ingresar con Google';
+}
+
+async function completeGoogleLoginResult(result) {
+  const email = normalizeEmail(result?.user?.email || '');
+  if (!email) {
+    const err = document.getElementById('pin-err');
+    if (err) err.textContent = 'Google no entregó correo';
+    return false;
+  }
+  const authorized = findAuthorizedVendorByEmail(email);
+  if (!authorized) {
+    await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
+    const err = document.getElementById('pin-err');
+    if (err) err.textContent = 'Correo no autorizado en FitFlow';
+    toast('Correo Google no autorizado en Admin','err');
+    return false;
+  }
+  enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email, photoURL:result?.user?.photoURL || ''});
+  return true;
+}
+
+async function handleGoogleRedirectLoginResult() {
+  if (!window._fbAuth || !window._fbSDK?.getRedirectResult) return;
+  const pending = localStorage.getItem('ff2_google_redirect_pending') === '1';
+  try {
+    if (pending) showLoading('Completando ingreso Google...');
+    const result = await window._fbSDK.getRedirectResult(window._fbAuth);
+    if (pending) hideLoading();
+    if (result?.user) {
+      localStorage.removeItem('ff2_google_redirect_pending');
+      await completeGoogleLoginResult(result);
+    }
+  } catch(e) {
+    if (pending) hideLoading();
+    localStorage.removeItem('ff2_google_redirect_pending');
+    await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
+    const msg = googleLoginErrorMessage(e);
+    const err = document.getElementById('pin-err');
+    if (err) err.textContent = msg;
+    toast(msg,'warn','long');
+    console.log('Google redirect error:', e?.code || '', e?.message || e);
   }
 }
 
@@ -3132,6 +3237,42 @@ function applyPickupObservation(obs='') {
   const rest = stripPickupObservation(obs);
   return rest ? `${PICKUP_OBS_PREFIX} ${rest}` : PICKUP_OBS_PREFIX;
 }
+const CLIENT_BUSINESS_HOUR_OPTIONS = [
+  {id:'continuado', label:'Horario continuado', code:'HORARIO CONTINUADO'},
+  {id:'cierra-13-14', label:'Cierra al medio día de 13:00 a 14:00', code:'CIERRA 13:00-14:00'},
+  {id:'cierra-13-15', label:'Cierra al medio día de 13:00 a 15:00', code:'CIERRA 13:00-15:00'}
+];
+function normalizeBusinessHoursText(v='') {
+  const raw = flatAscii(String(v||'')).trim().toUpperCase().replace(/\s+/g,' ');
+  if (!raw) return '';
+  if (raw.includes('CONTINUADO')) return 'HORARIO CONTINUADO';
+  const timeMatch = raw.match(/([01]?\d|2[0-3])[:.]?([0-5]\d)\D+([01]?\d|2[0-3])[:.]?([0-5]\d)/);
+  if (timeMatch) {
+    const h1 = timeMatch[1].padStart(2,'0');
+    const m1 = timeMatch[2].padStart(2,'0');
+    const h2 = timeMatch[3].padStart(2,'0');
+    const m2 = timeMatch[4].padStart(2,'0');
+    return `CIERRA ${h1}:${m1}-${h2}:${m2}`;
+  }
+  return raw.replace(/[^A-Z0-9 :.-]/g,' ').replace(/\s+/g,' ').trim().slice(0,20);
+}
+function businessHoursLabel(code='') {
+  const clean = normalizeBusinessHoursText(code);
+  return CLIENT_BUSINESS_HOUR_OPTIONS.find(x=>x.code === clean)?.label || clean;
+}
+function stripBusinessHoursFromObs(obs='') {
+  let text = String(obs||'').trimStart();
+  const known = CLIENT_BUSINESS_HOUR_OPTIONS.map(x=>x.code.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
+  const re = new RegExp(`^(?:${known}|CIERRA\\s+\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})\\.?\\s*`, 'i');
+  return text.replace(re,'').replace(/^[\s;:,.|-]+/,'').trimStart();
+}
+function observationWithBusinessHours(obs='', businessHoursCode='') {
+  if (hasPickupFreightSelected(obs)) return String(obs||'');
+  const code = normalizeBusinessHoursText(businessHoursCode);
+  const rest = stripBusinessHoursFromObs(obs);
+  if (!code) return rest;
+  return rest ? `${code}. ${rest}` : `${code}.`;
+}
 const OBS_MAX_CHARS = 300;
 function enforceObservationLimit(el=document.getElementById('cart-obs')) {
   if (!el) return;
@@ -3293,18 +3434,30 @@ function renderCart() {
 }
 
 function updateCartCliBar() {
-  const bar=document.getElementById('cart-cli-bar'), name=document.getElementById('cart-cli-name'), details=document.getElementById('cart-cli-details'), action=document.getElementById('cart-cli-action');
+  const bar=document.getElementById('cart-cli-bar'), name=document.getElementById('cart-cli-name'), details=document.getElementById('cart-cli-details'), action=document.getElementById('cart-cli-action'), hoursText=document.getElementById('cart-cli-hours-text'), hoursLine=document.getElementById('cart-cli-hours-line');
   if (selectedClient) {
     bar.classList.add('ok');
     name.textContent=selectedClient.nombre;
     details.textContent=clientDetailsLine(selectedClient);
-    action.textContent='Cambiar';
+    action.textContent='Cambiar cliente';
+    if (hoursText && hoursLine) {
+      const code = getStoredClientBusinessHours(selectedClient);
+      hoursLine.style.display = 'flex';
+      hoursText.textContent = code ? businessHoursLabel(code) : 'Horario';
+      hoursText.title = code ? businessHoursLabel(code) : 'Seleccionar horario de atención';
+      hoursLine.classList.toggle('has-hours', !!code);
+    }
   }
   else {
     bar.classList.remove('ok');
     name.textContent='Sin cliente — toca para seleccionar';
     details.textContent='';
     action.textContent='Seleccionar →';
+    if (hoursText && hoursLine) {
+      hoursLine.style.display = 'none';
+      hoursText.textContent = '';
+      hoursLine.classList.remove('has-hours');
+    }
   }
 }
 
@@ -3344,7 +3497,7 @@ function manualContactUpdatedMs(contact) { return Date.parse(contact?.updatedAt 
 function officialClientsUpdatedMs() { return Date.parse(LS.get('clients_updated_at') || '') || 0; }
 function chooseClientContactValue(officialValue, manualContact, field) {
   const manualValue = String(manualContact?.[field] || '').trim();
-  const cleanOfficial = field === 'phone' ? normalizePhone(officialValue) : normalizeEmail(officialValue);
+  const cleanOfficial = field === 'phone' ? normalizePhone(officialValue) : (field === 'businessHoursCode' ? normalizeBusinessHoursText(officialValue) : normalizeEmail(officialValue));
   if (!cleanOfficial) return manualValue;
   if (!manualValue) return cleanOfficial;
   return officialClientsUpdatedMs() > manualContactUpdatedMs(manualContact) ? cleanOfficial : manualValue;
@@ -3444,6 +3597,70 @@ function saveClientPhone(c, phone) {
   map[key] = clean;
   LS._setLocal('client_phones', map);
   upsertManualClientContact(c, {phone:clean});
+}
+function officialClientBusinessHours(c={}) {
+  return normalizeBusinessHoursText(c.businessHoursCode || c.businessHours || c.horario || c.horarioAtencion || c.horario_atencion || c.horarioFuncionamiento || '');
+}
+function getStoredClientBusinessHours(c) {
+  const key = clientKey(c);
+  if (!key) return '';
+  const manual = manualContactsMap()[key];
+  const official = officialClientBusinessHours(c);
+  const selected = chooseClientContactValue(official, manual, 'businessHoursCode');
+  if (selected) return normalizeBusinessHoursText(selected);
+  const map = LS.get('client_business_hours') || {};
+  return normalizeBusinessHoursText(map[key] || '');
+}
+function saveClientBusinessHours(c, businessHoursCode) {
+  if (!c) return '';
+  const clean = normalizeBusinessHoursText(businessHoursCode);
+  const key = clientKey(c);
+  const map = LS.get('client_business_hours') || {};
+  if (clean) map[key] = clean;
+  else delete map[key];
+  LS._setLocal('client_business_hours', map);
+  upsertManualClientContact(c, {businessHoursCode:clean});
+  if (selectedClient && clientKey(selectedClient) === key) selectedClient.businessHoursCode = clean;
+  const tempClients = LS.get('temp_clients') || [];
+  const idx = tempClients.findIndex(x => clientKey(x) === key);
+  if (idx >= 0) tempClients[idx] = {...tempClients[idx], businessHoursCode:clean, updatedAt:new Date().toISOString()};
+  LS._setLocal('temp_clients', tempClients);
+  updateCartCliBar();
+  saveCurrentCartDraft();
+  return clean;
+}
+function openClientBusinessHoursModal() {
+  if (!selectedClient) { toast('Selecciona un cliente primero','warn'); return; }
+  const current = getStoredClientBusinessHours(selectedClient);
+  const rows = CLIENT_BUSINESS_HOUR_OPTIONS.map(opt => `<button class="business-hours-option ${current===opt.code?'active':''}" onclick="selectClientBusinessHours('${opt.code}')">${escEmailHtml(opt.label)}</button>`).join('');
+  openModal(`<div class="modal-title">Horario de atención</div>
+    <div class="modal-sub">${escEmailHtml(selectedClient.nombre || 'Cliente')}</div>
+    <div class="business-hours-options">${rows}</div>
+    <label class="modal-lbl">Otro horario</label>
+    <input class="modal-inp" id="client-business-hours-other" value="${current && !CLIENT_BUSINESS_HOUR_OPTIONS.some(x=>x.code===current) ? escEmailHtml(current) : ''}" placeholder="Ej: Cierra 13:00-14:00" autocomplete="off">
+    <div class="modal-sub" style="margin-top:-8px;">Se guardará como dato del cliente en la app y se usará al emitir documentos.</div>
+    <div class="modal-btns" style="margin-top:14px;">
+      <button class="btn-confirm" onclick="saveOtherClientBusinessHours()">Guardar otro</button>
+      <button class="btn-cancel" onclick="clearClientBusinessHours()">Sin horario</button>
+      <button class="btn-cancel" onclick="closeModal()">Cerrar</button>
+    </div>`);
+}
+function selectClientBusinessHours(code) {
+  saveClientBusinessHours(selectedClient, code);
+  closeModal();
+  toast('Horario guardado en cliente','ok');
+}
+function saveOtherClientBusinessHours() {
+  const clean = normalizeBusinessHoursText(document.getElementById('client-business-hours-other')?.value || '');
+  if (!clean) { toast('Ingresa un horario válido','warn'); return; }
+  saveClientBusinessHours(selectedClient, clean);
+  closeModal();
+  toast('Horario guardado en cliente','ok');
+}
+function clearClientBusinessHours() {
+  saveClientBusinessHours(selectedClient, '');
+  closeModal();
+  toast('Horario eliminado del cliente','ok');
 }
 
 function isTestClient(c={}) {
@@ -4608,6 +4825,12 @@ function nextFlatOrderNumber() {
 function erpFlatFileName(order={}) {
   return `Plano_${String(order.documentNumber||order.id||'NV').replace(/[^\w-]+/g,'_')}.txt`;
 }
+function orderBusinessHoursCode(order={}) {
+  return normalizeBusinessHoursText(order.businessHoursCode || getStoredClientBusinessHours(order.cliente || selectedClient));
+}
+function flatOrderObservation(order={}) {
+  return stripBusinessHoursFromObs(order.obs || '');
+}
 function buildErpFlatFileRecord(order) {
   if (order.docType !== 'nota_venta') return null;
   const vendorCode = order.vendedorCodigo || currentUser?.codigo || '';
@@ -4632,9 +4855,9 @@ function buildErpFlatFileRecord(order) {
       ' '.repeat(15),                      // 65-79 null
       flatZero(flatNumber,2),              // 80-81 numero_pedido
       'F',                                 // 82 tipo_documento
-      ' '.repeat(20),                      // 83-102 horario
+      flatLeft(orderBusinessHoursCode(order),20), // 83-102 horario
       flatLeft(payCode,2),                 // 103-104 codigo_condicion_pago
-      flatLeft(order.obs||'',30),          // 105-134 observacion
+      flatLeft(flatOrderObservation(order),30), // 105-134 observacion
       ' '.repeat(11),                      // 135-145 latitud
       ' '.repeat(12)                       // 146-157 longitud
     ];
@@ -4881,7 +5104,8 @@ function persistCurrentPedido() {
   if (isTestClient(selectedClient) && !isSupraAdmin()) { toast('Cliente de prueba disponible solo para Supra','err'); return null; }
   const adjustedDiscounts = normalizeCartDiscounts({silent:false});
   if (adjustedDiscounts) renderCart();
-  const obs=currentCartObs();
+  const businessHoursCode=getStoredClientBusinessHours(selectedClient);
+  const obs=observationWithBusinessHours(currentCartObs(), businessHoursCode);
   const validityDays=normalizeValidityDays(currentValidityDays);
   const paymentConditionCode=paymentConditionCodeFor(currentPaymentCondition);
   const orders=visibleOrders(LS.get('orders')||[]);
@@ -4895,6 +5119,7 @@ function persistCurrentPedido() {
       orders[idx].isTestClient=isTestClient(selectedClient);
       orders[idx].total=cartTotal();
       orders[idx].obs=obs;
+      orders[idx].businessHoursCode=businessHoursCode;
       orders[idx].paymentCondition=currentPaymentCondition||'';
       orders[idx].paymentConditionCode=paymentConditionCode;
       orders[idx].validityDays=validityDays;
@@ -4906,7 +5131,7 @@ function persistCurrentPedido() {
   }
   if (!savedOrder) {
     const activeVendor = currentVendorForDiscounts();
-    savedOrder = {id:Date.now(),fecha:new Date().toLocaleString('es-CL'),vendedor:activeVendor?.name||currentUser?.name||'',vendedorCodigo:activeVendor?.codigo||currentUser?.codigo||'',vendedorEmail:normalizeEmail(activeVendor?.email||currentUser?.email||''),vendedorPhone:normalizePhone(activeVendor?.phone||currentUser?.phone||''),cliente:selectedClient?{...selectedClient}:null,isTestClient:isTestClient(selectedClient),items:[...cart.map(x=>({...x}))],total:cartTotal(),obs,paymentCondition:currentPaymentCondition||'',paymentConditionCode,validityDays,estado:'proceso',updatedAtMs:Date.now()};
+    savedOrder = {id:Date.now(),fecha:new Date().toLocaleString('es-CL'),vendedor:activeVendor?.name||currentUser?.name||'',vendedorCodigo:activeVendor?.codigo||currentUser?.codigo||'',vendedorEmail:normalizeEmail(activeVendor?.email||currentUser?.email||''),vendedorPhone:normalizePhone(activeVendor?.phone||currentUser?.phone||''),cliente:selectedClient?{...selectedClient}:null,isTestClient:isTestClient(selectedClient),items:[...cart.map(x=>({...x}))],total:cartTotal(),obs,businessHoursCode,paymentCondition:currentPaymentCondition||'',paymentConditionCode,validityDays,estado:'proceso',updatedAtMs:Date.now()};
     orders.unshift(savedOrder);
   }
   activeOrderId = savedOrder.id;
@@ -5051,7 +5276,9 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
   closeModal();
   showLoading('Reservando correlativo...');
   const now = new Date();
-  const fecha=now.toLocaleString('es-CL'), obs=currentCartObs();
+  const fecha=now.toLocaleString('es-CL');
+  const businessHoursCode=getStoredClientBusinessHours(selectedClient);
+  const obs=observationWithBusinessHours(currentCartObs(), businessHoursCode);
   const reserved = await nextDocumentNumber(docType);
   hideLoading();
   const cfg = DOC_TYPES[docType] || DOC_TYPES.cotizacion;
@@ -5073,6 +5300,7 @@ async function sendPedido(docType='cotizacion', sendMode='central', confirmedMul
     iva:totals.iva,
     total:totals.total,
     obs,
+    businessHoursCode,
     paymentCondition,
     paymentConditionCode,
     validityDays,
@@ -5280,10 +5508,13 @@ function loadPedidoIntoCart(source, mode) {
   cart=hydrateItemsUnits(source.items||[]);
   const adjustedDiscounts = normalizeCartDiscounts({silent:true});
   selectedClient=source.cliente?{...source.cliente}:null;
+  if (selectedClient && source.businessHoursCode && !officialClientBusinessHours(selectedClient)) {
+    selectedClient.businessHoursCode = normalizeBusinessHoursText(source.businessHoursCode);
+  }
   activeOrderId = mode === 'resume' ? source.id : null;
   currentPaymentCondition = source.paymentCondition || '';
   currentValidityDays = normalizeValidityDays(source.validityDays || 7);
-  setCurrentCartObs(source.obs||'');
+  setCurrentCartObs(stripBusinessHoursFromObs(source.obs||''));
   updateCartDot();
   renderCart();
   saveCurrentCartDraft();
@@ -7004,15 +7235,37 @@ function normalizeRut(raw) {
   const compact = String(raw||'').replace(/[^0-9kK]/g,'').toUpperCase();
   return compact.length > 1 ? compact.slice(0,-1)+'-'+compact.slice(-1) : compact;
 }
-function parseClientRows(rows) {
+function clientLogRow(tipo, fila, data={}, detalle='') {
+  return {
+    tipo,
+    fila,
+    rut:data.rut || '',
+    nombre:data.nombre || '',
+    direccion:data.direccion || '',
+    comuna:data.comuna || '',
+    ciudad:data.ciudad || '',
+    email:data.email || data.emailRaw || '',
+    phone:data.phone || data.phoneRaw || '',
+    formadepag:data.paymentCondition || data.formadepag || '',
+    detalle
+  };
+}
+function parseClientRowsDetailed(rows) {
   const seen = new Set();
-  return rows.map(r => {
+  const clientsOut = [];
+  const logRows = [];
+  let invalidRows = 0, duplicateRows = 0, invalidEmails = 0, invalidPhones = 0, paymentConditionNotFound = 0;
+  rows.forEach((r, idx) => {
+    const fila = idx + 2;
     const rutRaw = rowVal(r,['RUT','RUT CLIENTE','rutcliente','Etiquetas de fila','rut']);
     const compact = String(rutRaw||'').replace(/[^0-9kK]/g,'');
-    const email = normalizeEmail(rowVal(r,['CORREO','EMAIL','MAIL','correocont','correo contacto','email contacto']));
-    const phone = normalizePhone(rowVal(r,['CELULAR','TELEFONO','TELÉFONO','MOVIL','MÓVIL','WHATSAPP','celular']));
+    const emailRaw = String(rowVal(r,['CORREO','EMAIL','MAIL','correocont','correo contacto','email contacto'])||'').trim();
+    const phoneRaw = String(rowVal(r,['CELULAR','TELEFONO','TELÉFONO','MOVIL','MÓVIL','WHATSAPP','celular'])||'').trim();
+    const email = normalizeEmail(emailRaw);
+    const phone = normalizePhone(phoneRaw);
     const paymentCondition = String(rowVal(r,['formadepag','FORMADEPAG','FORMA DE PAGO','FORMA PAGO','CONDICION DE PAGO','CONDICIÓN DE PAGO'])||'').trim();
-    return {
+    const businessHoursCode = normalizeBusinessHoursText(rowVal(r,['HORARIO','HORARIO ATENCION','HORARIO ATENCIÓN','HORARIO DE ATENCION','HORARIO DE ATENCIÓN','HORARIO FUNCIONAMIENTO','HORARIO DE FUNCIONAMIENTO','horario','horario_atencion'])||'');
+    const client = {
       rut: normalizeRut(rutRaw),
       nombre: String(rowVal(r,['NOMBRE','NOMBRE CLI','nombreclie','RAZON SOCIAL','CLIENTE','nombre'])||'').replace(/^\|+/,'').trim(),
       direccion: String(rowVal(r,['DIRECCION','DIRECCIÓN','direccion'])||'').trim(),
@@ -7022,12 +7275,62 @@ function parseClientRows(rows) {
       phone: isValidChilePhone(phone) ? phone : '',
       paymentCondition,
       formadepag:paymentCondition,
+      businessHoursCode,
+      horario:businessHoursCode,
       _rutLen: compact.length
     };
-  }).filter(c => {
-    if (!c.rut || !c.nombre || c._rutLen < 7 || seen.has(c.rut)) return false;
-    seen.add(c.rut); delete c._rutLen; return true;
+    if (!client.rut || client._rutLen < 7) {
+      invalidRows++;
+      logRows.push(clientLogRow('Omitido', fila, {...client, emailRaw, phoneRaw}, 'RUT vacío o inválido'));
+      return;
+    }
+    if (!client.nombre) {
+      invalidRows++;
+      logRows.push(clientLogRow('Omitido', fila, {...client, emailRaw, phoneRaw}, 'Cliente sin nombre'));
+      return;
+    }
+    if (seen.has(client.rut)) {
+      invalidRows++;
+      duplicateRows++;
+      logRows.push(clientLogRow('Omitido', fila, {...client, emailRaw, phoneRaw}, 'RUT duplicado en el archivo; se conserva la primera aparición'));
+      return;
+    }
+    if (emailRaw && !isValidEmail(email)) {
+      invalidEmails++;
+      logRows.push(clientLogRow('Advertencia', fila, {...client, emailRaw, phoneRaw}, 'Correo inválido; se cargó cliente sin correo'));
+    }
+    if (phoneRaw && !isValidChilePhone(phone)) {
+      invalidPhones++;
+      logRows.push(clientLogRow('Advertencia', fila, {...client, emailRaw, phoneRaw}, 'Teléfono inválido; se cargó cliente sin teléfono'));
+    }
+    if (paymentCondition && !paymentConditionForName(paymentCondition)) {
+      paymentConditionNotFound++;
+      logRows.push(clientLogRow('Advertencia', fila, {...client, emailRaw, phoneRaw}, 'Condición de pago no está parametrizada en Admin'));
+    }
+    seen.add(client.rut);
+    delete client._rutLen;
+    clientsOut.push(client);
   });
+  return {
+    clients:clientsOut,
+    log:{
+      totalRows:rows.length,
+      loaded:clientsOut.length,
+      invalidRows,
+      warningRows:logRows.filter(r=>r.tipo === 'Advertencia').length,
+      duplicateRows,
+      invalidEmails,
+      invalidPhones,
+      paymentConditionNotFound,
+      rows:[
+        {tipo:'resumen', fila:'', rut:'', nombre:'', detalle:`${clientsOut.length} clientes cargados desde ${rows.length} filas`},
+        ...logRows
+      ]
+    }
+  };
+}
+function parseClientRows(rows) {
+  return parseClientRowsDetailed(rows).clients;
 }
 
 async function uploadClis(inp) {
@@ -7039,21 +7342,22 @@ async function uploadClis(inp) {
     const wb=read(new Uint8Array(await f.arrayBuffer()),{type:'array'});
     const rows=utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
     setLoadingText(`Procesando ${rows.length} filas de clientes...`);
-    const news=parseClientRows(rows);
-    if(!news.length){toast('No se encontraron clientes válidos','err');return;}
+    const parsed=parseClientRowsDetailed(rows);
+    const news=parsed.clients;
     const updatedAt = new Date().toISOString();
     const version = 'admin-'+updatedAt;
     const clientLog = {
+      ...parsed.log,
       fileName:f.name,
       updatedAt,
-      updatedBy:currentUser?.name||'Administrador',
-      totalRows:rows.length,
-      loaded:news.length,
-      invalidRows:Math.max(0, rows.length-news.length),
-      rows:[
-        {tipo:'resumen', fila:'', rut:'', nombre:'', detalle:`${news.length} clientes cargados desde ${rows.length} filas`}
-      ]
+      updatedBy:currentUser?.name||'Administrador'
     };
+    if(!news.length){
+      LS._setLocal('client_import_log',clientLog);
+      updateClientLogUI();
+      toast('No se encontraron clientes válidos. Revisa el log de clientes.','err');
+      return;
+    }
     clients=news;
     setLoadingText(`Guardando clientes localmente (${news.length})...`);
     const saved = await setListCache('clients', clients, version);
@@ -7337,7 +7641,7 @@ updatePriceModeButtons();
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, deleteDoc, getDocs, collection, runTransaction } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
-  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 
   const app = initializeApp({
     apiKey: "AIzaSyC0KNVxpJGnwA5RKLWheZL1h8zPqfC4GB0",
@@ -7357,10 +7661,11 @@ updatePriceModeButtons();
   window._fbDB  = db;
   window._fbAuth = auth;
   window._fbGoogleProvider = googleProvider;
-  window._fbSDK = { getDoc, setDoc, deleteDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
+  window._fbSDK = { getDoc, setDoc, deleteDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
 
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
   if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
+  if (typeof handleGoogleRedirectLoginResult === 'function') handleGoogleRedirectLoginResult();
   if (typeof handleFirebaseAuthAction === 'function') handleFirebaseAuthAction();
   onAuthStateChanged(auth, user => {
     if (user) {
