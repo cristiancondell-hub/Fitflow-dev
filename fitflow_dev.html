@@ -2319,15 +2319,16 @@ async function completeGoogleLoginResult(result) {
     if (err) err.textContent = 'Google no entregó correo';
     return false;
   }
-  const authorized = findAuthorizedVendorByEmail(email);
-  if (!authorized) {
+  const authResult = await validateFitFlowSessionEmail(email, {provider:'google'});
+  if (!authResult.ok) {
     await window._fbSDK.signOut?.(window._fbAuth).catch(()=>{});
     const err = document.getElementById('pin-err');
-    if (err) err.textContent = 'Correo no autorizado en FitFlow';
-    toast('Correo Google no autorizado en Admin','err');
+    const msg = authResult.reason === 'no_autorizado' ? 'Correo no autorizado en FitFlow' : 'No se pudo validar el correo Google en FitFlow';
+    if (err) err.textContent = msg;
+    toast(msg,'err');
     return false;
   }
-  enterWithVendor(authorized.vendor, authorized.idx, {provider:'google', email, photoURL:result?.user?.photoURL || ''});
+  enterWithVendor(authResult.vendor, authResult.idx, {provider:'google', email, photoURL:result?.user?.photoURL || '', lastValidatedAt:authResult.lastValidatedAt || Date.now()});
   return true;
 }
 
@@ -7664,8 +7665,8 @@ updatePriceModeButtons();
   window._fbSDK = { getDoc, setDoc, deleteDoc, doc, getDocs, collection, runTransaction, signInWithPopup, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, sendPasswordResetEmail, verifyPasswordResetCode, confirmPasswordReset, signOut };
 
   // Antes del login solo se trae configuracion liviana: usuarios, email y logo.
-  if (typeof preloadLoginConfig === 'function') preloadLoginConfig();
-  if (typeof handleGoogleRedirectLoginResult === 'function') handleGoogleRedirectLoginResult();
+  if (typeof preloadLoginConfig === 'function') await preloadLoginConfig();
+  if (typeof handleGoogleRedirectLoginResult === 'function') await handleGoogleRedirectLoginResult();
   if (typeof handleFirebaseAuthAction === 'function') handleFirebaseAuthAction();
   onAuthStateChanged(auth, user => {
     if (user) {
