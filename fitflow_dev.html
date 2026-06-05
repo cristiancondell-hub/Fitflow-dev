@@ -824,6 +824,8 @@ const FITFLOW_ACTIVE_TAB_KEY = 'active_tab';
 const FITFLOW_ACTIVE_CATALOG_KEY = 'active_catalog_view';
 const FITFLOW_MASTER_CATALOG_CACHE_KEY = 'catalog_master_products';
 const FITFLOW_CATALOG_VIEW_IDS = ['old','new'];
+const FITFLOW_CATALOG_CACHE_SCHEMA_KEY = 'catalog_cache_schema';
+const FITFLOW_CATALOG_CACHE_SCHEMA_VERSION = '2026-06-05-catalog-views-v1';
 const FITFLOW_AUTH_RECHECK_MS = 15 * 60 * 1000;
 const FITFLOW_AUTH_OFFLINE_MAX_MS = 24 * 60 * 60 * 1000;
 let catalogMasterState = {available:false, byCode:new Map(), products:[], meta:null, error:''};
@@ -888,6 +890,31 @@ function removeLocalCacheFamily(key) {
   } catch(e) {}
 }
 
+function invalidateCatalogCacheIfNeeded() {
+  if (LS.get(FITFLOW_CATALOG_CACHE_SCHEMA_KEY) === FITFLOW_CATALOG_CACHE_SCHEMA_VERSION) return;
+  [
+    'prods',
+    FITFLOW_MASTER_CATALOG_CACHE_KEY,
+    ...FITFLOW_CATALOG_VIEW_IDS.map(catalogViewCacheKey)
+  ].forEach(removeLocalCacheFamily);
+  [
+    'products_meta',
+    'product_import_log',
+    'prods_cache_reason',
+    'catalog_master_meta',
+    'catalog_views_meta',
+    ...FITFLOW_CATALOG_VIEW_IDS.map(id => `catalog_view_${id}_meta`)
+  ].forEach(k => {
+    try {
+      delete LS_MEMORY[k];
+      localStorage.removeItem('ff2_'+k);
+    } catch(e) {}
+  });
+  catalogMasterState = {available:false, byCode:new Map(), products:[], meta:null, error:''};
+  catalogViewsState = {meta:null, views:{old:{available:true, loaded:false, byCode:new Map(), products:[], meta:null, error:''}, new:{available:false, loaded:false, byCode:new Map(), products:[], meta:null, error:''}}};
+  LS._setLocal(FITFLOW_CATALOG_CACHE_SCHEMA_KEY, FITFLOW_CATALOG_CACHE_SCHEMA_VERSION);
+}
+
 function freeLocalStorageForCriticalData() {
   // Pedidos y borrados son críticos. Catálogo/clientes se pueden reconstruir desde IndexedDB o Firebase.
   removeLocalCacheFamily('prods');
@@ -920,6 +947,8 @@ function loadState() {
   if (!LS.get('product_visibility_rules')) LS._setLocal('product_visibility_rules',DEFAULT_PRODUCT_VISIBILITY_RULES);
   if (!LS.get('orders')) LS.set('orders',[]);
   if (!LS.get('deleted_orders')) LS._setLocal('deleted_orders',[]);
+
+  invalidateCatalogCacheIfNeeded();
 
   const storedProds = LS.get('prods');
   const storedProdVersion = LS.get('prods_version');
